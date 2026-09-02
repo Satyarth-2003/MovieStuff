@@ -10,49 +10,44 @@ function LoginCard() {
   const denied = params.get("error") === "AccessDenied";
 
   return (
-    <div className="glass-panel relative w-full max-w-md overflow-hidden rounded-3xl p-8 sm:p-10 text-center shadow-2xl border border-slate-700/60">
-      {/* Decorative ambient lights */}
-      <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-red-600/20 blur-3xl pointer-events-none" />
-      <div className="absolute -left-12 -bottom-12 h-36 w-36 rounded-full bg-amber-500/15 blur-3xl pointer-events-none" />
-
+    <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015]/80 p-8 text-center backdrop-blur-2xl shadow-2xl">
       {/* Official Adda247 Brand Logo */}
-      <div className="flex justify-center mb-6">
-        <AddaLogo size="lg" showTagline tagline="Teacher's Day Special Screening" variant="light" />
+      <div className="flex justify-center mb-8">
+        <AddaLogo height={26} variant="white" />
       </div>
 
-      {/* Teacher's Day Festive Tag */}
-      <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-bold text-amber-300 shadow-sm">
-        <span>✨ 🎓</span>
-        <span>Teacher&apos;s Day 2026 Premiere</span>
+      {/* Movie Details - Minimal & Classy */}
+      <div className="space-y-1">
+        <span className="text-[11px] font-medium tracking-widest text-red-500 uppercase">
+          Teacher&apos;s Day Private Screening
+        </span>
+        <h1 className="text-2xl font-bold tracking-tight text-white">
+          Mirzapur: The Movie
+        </h1>
+        <p className="text-xs text-zinc-400">
+          5 Sep · 02:45 PM · 1 Cinema, Star Mall
+        </p>
       </div>
 
-      {/* Movie Title */}
-      <h1 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight text-white font-serif">
-        Mirzapur: The Movie
-      </h1>
-      <p className="mt-1 text-xs text-slate-300 font-medium">
-        5 Sep · 02:45 PM · 1 Cinema Powered by Mukta A2, Star Mall
-      </p>
+      <div className="my-8 h-px w-full bg-white/[0.06]" />
 
-      {/* Description */}
-      <p className="mt-6 text-sm text-slate-300 leading-relaxed">
-        Welcome to the exclusive Adda247 Teacher&apos;s Day movie screening. Sign in with your official
-        Adda247 Google account to choose and confirm your auditorium seat.
+      <p className="text-xs leading-relaxed text-zinc-400">
+        Sign in with your Adda247 Google account to select your seat.
       </p>
 
       {denied && (
-        <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-xs font-semibold text-red-300 shadow-glow">
-          ⚠️ This Google account is not on the approved Adda247 guest list. Please sign in with your official @adda247.com account or contact your HR admin.
+        <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
+          This account is not on the guest list. Please use your official @adda247.com ID.
         </div>
       )}
 
-      {/* Google Sign In Button */}
+      {/* Google Sign In Button - CRED / District minimal aesthetic */}
       <button
         type="button"
         onClick={() => signIn("google", { callbackUrl: "/" })}
-        className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-white px-5 py-3.5 text-sm font-bold text-slate-900 shadow-lg transition-all hover:bg-slate-100 hover:scale-[1.02] active:scale-95"
+        className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-3.5 text-sm font-semibold text-black transition-all hover:bg-zinc-200 active:scale-[0.98]"
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24">
+        <svg className="h-4 w-4" viewBox="0 0 24 24">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -70,32 +65,20 @@ function LoginCard() {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
           />
         </svg>
-        <span>Continue with Adda247 Google</span>
+        <span>Continue with Google</span>
       </button>
 
-      {/* Teacher's Day Commemorative Quote */}
-      <div className="mt-8 border-t border-slate-800 pt-4">
-        <p className="text-[11px] italic text-amber-400/90">
-          &ldquo;A teacher affects eternity; they can never tell where their influence stops.&rdquo;
-        </p>
-        <p className="mt-1 text-[10px] text-slate-400">
-          Happy Teacher&apos;s Day from the Adda247 Leadership Team
-        </p>
-      </div>
+      <p className="mt-6 text-[11px] text-zinc-500">
+        Exclusively for Adda247 team members & educators
+      </p>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <main className="cinema-ambient-bg flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <Suspense
-        fallback={
-          <div className="text-sm font-semibold tracking-wider text-slate-400">
-            Loading Adda247 Cinema Experience…
-          </div>
-        }
-      >
+    <main className="flex min-h-screen items-center justify-center bg-[#07080A] px-4 py-12">
+      <Suspense fallback={null}>
         <LoginCard />
       </Suspense>
     </main>
