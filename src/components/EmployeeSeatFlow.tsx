@@ -13,10 +13,15 @@ export default function EmployeeSeatFlow() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [reservedSeats, setReservedSeats] = useState<Set<string>>(new Set());
+  const [seatOwners, setSeatOwners] = useState<Record<string, string>>({});
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [releasing, setReleasing] = useState(false);
+
+  // Admin Selected Seat Action Modal state
+  const [adminSeatModal, setAdminSeatModal] = useState<string | null>(null);
+  const [reassignEmail, setReassignEmail] = useState("");
 
   // Admin Slide-over Drawer state
   const [showAdminDrawer, setShowAdminDrawer] = useState(false);
@@ -24,6 +29,7 @@ export default function EmployeeSeatFlow() {
   const [adminBusy, setAdminBusy] = useState(false);
   const [adminMsg, setAdminMsg] = useState<string | null>(null);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [quickAssignSeat, setQuickAssignSeat] = useState<Record<string, string>>({});
 
   async function loadAll() {
     setLoadState("loading");
@@ -32,12 +38,22 @@ export default function EmployeeSeatFlow() {
       if (!meRes.ok) throw new Error("Failed to load your profile.");
       const meData = await meRes.json();
       setEmployee(meData.employee);
-      setIsAdmin(!!meData.isAdmin);
+      const userIsAdmin = !!meData.isAdmin;
+      setIsAdmin(userIsAdmin);
 
       const seatsRes = await fetch("/api/seats");
       if (seatsRes.ok) {
         const seatsData = await seatsRes.json();
         setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
+      }
+
+      if (userIsAdmin) {
+        const seatmapRes = await fetch("/api/admin/seatmap");
+        if (seatmapRes.ok) {
+          const seatmapData = await seatmapRes.json();
+          setSeatOwners(seatmapData.reserved || {});
+        }
+        await loadAdminData();
       }
 
       setLoadState("ready");
@@ -101,22 +117,29 @@ export default function EmployeeSeatFlow() {
       if (!res.ok) {
         setError(data.error || "Could not confirm your seat.");
         setSelectedSeat(null);
-        const seatsRes = await fetch("/api/seats");
-        if (seatsRes.ok) {
-          const seatsData = await seatsRes.json();
-          setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
-        }
+        await refreshSeats();
         return;
       }
       setEmployee((prev) => (prev ? { ...prev, seat: data.seat!, status: "reserved" } : prev));
-      // Refresh seat map
-      const seatsRes = await fetch("/api/seats");
-      if (seatsRes.ok) {
-        const seatsData = await seatsRes.json();
-        setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
-      }
+      await refreshSeats();
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function refreshSeats() {
+    const seatsRes = await fetch("/api/seats");
+    if (seatsRes.ok) {
+      const seatsData = await seatsRes.json();
+      setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
+    }
+    if (isAdmin) {
+      const seatmapRes = await fetch("/api/admin/seatmap");
+      if (seatmapRes.ok) {
+        const seatmapData = await seatmapRes.json();
+        setSeatOwners(seatmapData.reserved || {});
+      }
+      await loadAdminData();
     }
   }
 
@@ -127,15 +150,74 @@ export default function EmployeeSeatFlow() {
       if (res.ok) {
         setEmployee((prev) => (prev ? { ...prev, seat: null, status: "not_booked" } : prev));
         setSelectedSeat(null);
-        const seatsRes = await fetch("/api/seats");
-        if (seatsRes.ok) {
-          const seatsData = await seatsRes.json();
-          setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
-        }
+        await refreshSeats();
       }
     } finally {
       setReleasing(false);
     }
+  }
+
+  // Admin Actions for any user/seat
+  async function handleAdminReleaseSeat(seatIdOrEmail: { seatId?: string; email?: string }) {
+    setAdminBusy(true);
+    try {
+      const res = await fetch("/api/admin/seat/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(seatIdOrEmail),
+      });
+      if (res.ok) {
+        setAdminMsg("Seat released successfully.");
+        setAdminSeatModal(null);
+        await refreshSeats();
+        // If it was the admin's own seat, update employee state too
+        if (seatIdOrEmail.email === employee?.email || (employee?.seat && seatIdOrEmail.seatId === employee.seat)) {
+          setEmployee((prev) => (prev ? { ...prev, seat: null, status: "not_booked" } : prev));
+        }
+        setTimeout(() => setAdminMsg(null), 3000);
+      }
+    } finally {
+      setAdminBusy(false);
+    }
+  }
+
+  async function handleAdminAssignSeat(email: string, seatId: string) {
+    if (!email || !seatId) return;
+    setAdminBusy(true);
+    try {
+      const res = await fetch("/api/admin/seat/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, seatId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to assign seat.");
+      setAdminMsg(`Assigned ${seatId} to ${email}`);
+      setAdminSeatModal(null);
+      setReassignEmail("");
+      await refreshSeats();
+      if (email.toLowerCase() === employee?.email.toLowerCase()) {
+        setEmployee((prev) => (prev ? { ...prev, seat: seatId, status: "reserved" } : prev));
+      }
+      setTimeout(() => setAdminMsg(null), 3000);
+    } catch (e) {
+      setAdminMsg(e instanceof Error ? e.message : "Assignment failed");
+    } finally {
+      setAdminBusy(false);
+    }
+  }
+
+  function handleSeatClick(seatId: string) {
+    if (isAdmin) {
+      const owner = seatOwners[seatId];
+      if (owner && owner !== employee?.email) {
+        // Seat is booked by someone else: open admin seat control dialog
+        setAdminSeatModal(seatId);
+        return;
+      }
+    }
+    // Normal user or unbooked seat click
+    setSelectedSeat((prev) => (prev === seatId ? null : seatId));
   }
 
   if (loadState === "loading") {
@@ -212,7 +294,7 @@ export default function EmployeeSeatFlow() {
 
       <div className="mx-auto max-w-5xl px-6 pt-8">
         
-        {/* EVENT & VENUE HERO - SINGLE 02:45 PM SHOW */}
+        {/* EVENT & VENUE HERO */}
         <div className="mb-8 flex flex-col justify-between gap-6 border-b border-white/[0.06] pb-8 md:flex-row md:items-end">
           <div>
             <span className="text-[11px] font-semibold tracking-widest text-red-500 uppercase">
@@ -226,7 +308,6 @@ export default function EmployeeSeatFlow() {
             </p>
           </div>
 
-          {/* DEDICATED 02:45 PM SHOWTIME PILL */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-zinc-900/80 px-4 py-2.5">
               <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
@@ -237,6 +318,13 @@ export default function EmployeeSeatFlow() {
             </div>
           </div>
         </div>
+
+        {/* ADMIN MSG TOAST */}
+        {adminMsg && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-medium text-emerald-400">
+            {adminMsg}
+          </div>
+        )}
 
         {/* BODY: CONFIRMED PASS OR SEAT SELECTION */}
         {isConfirmed ? (
@@ -324,7 +412,8 @@ export default function EmployeeSeatFlow() {
               reservedSeats={reservedSeats}
               selectedSeat={selectedSeat}
               adminMode={isAdmin}
-              onSeatClick={(seatId) => setSelectedSeat((prev) => (prev === seatId ? null : seatId))}
+              ownerLabel={(seatId) => seatOwners[seatId]}
+              onSeatClick={handleSeatClick}
             />
 
             {/* CRED / DISTRICT STYLE FLOATING CHECKOUT BAR */}
@@ -366,6 +455,69 @@ export default function EmployeeSeatFlow() {
 
       </div>
 
+      {/* ADMIN SEAT INSPECT & ACTION MODAL */}
+      {adminSeatModal && isAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015] p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">Admin Seat Control</span>
+                <h3 className="text-lg font-bold text-white">Seat {adminSeatModal}</h3>
+              </div>
+              <button onClick={() => setAdminSeatModal(null)} className="text-zinc-400 hover:text-white">✕</button>
+            </div>
+
+            <div className="my-4 rounded-2xl bg-zinc-900/60 p-4 text-xs">
+              <span className="text-zinc-500">Currently Reserved By:</span>
+              <p className="font-semibold text-white font-mono mt-0.5">{seatOwners[adminSeatModal] || "Unknown"}</p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                disabled={adminBusy}
+                onClick={() => handleAdminReleaseSeat({ seatId: adminSeatModal })}
+                className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+              >
+                Release / Free this Seat
+              </button>
+
+              <div className="border-t border-white/[0.06] pt-3">
+                <label className="block text-[11px] text-zinc-400 mb-1.5">Reassign this seat to another user:</label>
+                <div className="flex gap-2">
+                  <select
+                    value={reassignEmail}
+                    onChange={(e) => setReassignEmail(e.target.value)}
+                    className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-white focus:outline-none"
+                  >
+                    <option value="">Select an employee…</option>
+                    {allEmployees.map((emp) => (
+                      <option key={emp.email} value={emp.email}>
+                        {emp.name || emp.email} {emp.seat ? `(Seat: ${emp.seat})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    disabled={adminBusy || !reassignEmail}
+                    onClick={() => handleAdminAssignSeat(reassignEmail, adminSeatModal)}
+                    className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-40"
+                  >
+                    Reassign
+                  </button>
+                </div>
+              </div>
+
+              <button
+                disabled={adminBusy}
+                onClick={() => handleAdminAssignSeat(employee.email, adminSeatModal)}
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-2.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white disabled:opacity-40"
+              >
+                Claim this seat for Myself
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADMIN SLIDE-OVER DRAWER */}
       {showAdminDrawer && isAdmin && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm">
@@ -382,12 +534,6 @@ export default function EmployeeSeatFlow() {
                 ✕
               </button>
             </div>
-
-            {adminMsg && (
-              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400">
-                {adminMsg}
-              </div>
-            )}
 
             {/* ADD GUESTS */}
             <div className="mt-6">
@@ -410,28 +556,58 @@ export default function EmployeeSeatFlow() {
               </button>
             </div>
 
-            {/* QUICK GUEST LIST */}
+            {/* QUICK GUEST LIST WITH CHANGE/RELEASE ACTIONS */}
             <div className="mt-8">
               <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
                 All Guests ({allEmployees.length})
               </h4>
-              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-[480px] overflow-y-auto pr-1">
                 {allEmployees.map((emp) => (
                   <div
                     key={emp.email}
-                    className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-xs"
+                    className="flex flex-col gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-3.5 text-xs"
                   >
-                    <div>
-                      <p className="font-medium text-white">{emp.name || emp.email.split("@")[0]}</p>
-                      <p className="text-[10px] text-zinc-500 font-mono">{emp.email}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-white">{emp.name || emp.email.split("@")[0]}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono">{emp.email}</p>
+                      </div>
+                      <div>
+                        {emp.seat ? (
+                          <span className="rounded-md bg-zinc-800 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-400">
+                            Seat {emp.seat}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-zinc-600">No seat</span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      {emp.seat ? (
-                        <span className="rounded-md bg-zinc-800 px-2 py-0.5 font-mono text-[10px] text-zinc-300">
-                          {emp.seat}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-zinc-600">No seat</span>
+
+                    {/* Admin Action for this user */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
+                      <input
+                        placeholder="Seat (e.g. A10)"
+                        value={quickAssignSeat[emp.email] || ""}
+                        onChange={(e) =>
+                          setQuickAssignSeat((prev) => ({ ...prev, [emp.email]: e.target.value.toUpperCase() }))
+                        }
+                        className="w-24 rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-[11px] text-white uppercase focus:outline-none"
+                      />
+                      <button
+                        disabled={adminBusy || !quickAssignSeat[emp.email]}
+                        onClick={() => handleAdminAssignSeat(emp.email, quickAssignSeat[emp.email])}
+                        className="rounded-lg bg-white px-2.5 py-1 text-[10px] font-semibold text-black hover:bg-zinc-200 disabled:opacity-30"
+                      >
+                        {emp.seat ? "Change" : "Assign"}
+                      </button>
+                      {emp.seat && (
+                        <button
+                          disabled={adminBusy}
+                          onClick={() => handleAdminReleaseSeat({ email: emp.email })}
+                          className="text-[11px] font-medium text-red-400 hover:text-red-300 ml-auto"
+                        >
+                          Release
+                        </button>
                       )}
                     </div>
                   </div>

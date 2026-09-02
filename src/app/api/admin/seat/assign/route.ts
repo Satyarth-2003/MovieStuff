@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
-import { adminAssignSeat, isWhitelisted } from "@/lib/booking";
+import { adminAssignSeat, isWhitelisted, ensureEmployee } from "@/lib/booking";
 import { parseSeat } from "@/lib/seats";
+
+function adminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
 
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin();
@@ -14,17 +21,21 @@ export async function POST(req: NextRequest) {
   if (!email || !parseSeat(seatId)) {
     return NextResponse.json({ error: "Valid email and seat are required." }, { status: 400 });
   }
-  const allowed = await isWhitelisted(email);
-  if (!allowed) {
-    return NextResponse.json({ error: "That email is not on the approved employee list." }, { status: 400 });
+
+  const isApproved = adminEmails().includes(email) || (await isWhitelisted(email));
+  if (!isApproved) {
+    return NextResponse.json(
+      { error: "That email is not on the approved guest/admin list." },
+      { status: 400 }
+    );
   }
 
+  await ensureEmployee(email, email.split("@")[0]);
   const result = await adminAssignSeat(email, seatId);
-  if (result === "ADMIN_ROW") {
-    return NextResponse.json({ error: "Rows A and B are reserved for admin use only." }, { status: 400 });
-  }
+
   if (result === "SEAT_TAKEN") {
     return NextResponse.json({ error: "That seat is already reserved by another employee." }, { status: 409 });
   }
-  return NextResponse.json({ ok: true });
+
+  return NextResponse.json({ ok: true, seat: seatId });
 }

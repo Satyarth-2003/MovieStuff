@@ -158,7 +158,6 @@ return "OK"
 `;
 
 export async function adminAssignSeat(email: string, seatId: string): Promise<ConfirmResult> {
-  if (isAdminRowSeat(seatId)) return "ADMIN_ROW";
   const bookingTime = new Date().toISOString();
   const result = await redis.eval(
     ADMIN_ASSIGN_SCRIPT,
@@ -173,6 +172,16 @@ export async function adminReleaseSeat(email: string): Promise<void> {
   if (!emp || !emp.seat) return;
   await redis.del(seatKey(emp.seat));
   await redis.hset(employeeKey(email), { seat: "", status: "not_booked", bookingTime: "" });
+}
+
+export async function adminReleaseSeatById(seatId: string): Promise<void> {
+  const allEmps = await listEmployees();
+  const target = allEmps.find((e) => e.seat === seatId);
+  if (target) {
+    await adminReleaseSeat(target.email);
+  } else {
+    await redis.del(seatKey(seatId));
+  }
 }
 
 export async function getStats() {
