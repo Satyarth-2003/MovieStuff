@@ -3,7 +3,7 @@
 import React from "react";
 import { isAdminRowSeat } from "@/lib/seats";
 
-export type SeatState = "available" | "selected" | "reserved" | "admin-reserved" | "mine" | "best";
+export type SeatState = "available" | "selected" | "reserved" | "admin-reserved" | "mine";
 
 interface SeatMapProps {
   reservedSeats: Set<string>;
@@ -14,16 +14,6 @@ interface SeatMapProps {
   adminMode?: boolean;
   ownerLabel?: (seatId: string) => string | undefined;
 }
-
-// Prime viewing seats in the auditorium
-const BEST_SEATS = new Set([
-  "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17",
-  "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13", "B14",
-  "C11", "C12", "C13", "C14", "C15", "C16", "C17",
-  "D4", "D5", "D8", "D9", "D11", "D12", "D15", "D16", "D17",
-  "E4", "E5", "E6", "E7", "E8", "E9", "E11", "E12", "E13", "E14",
-  "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14",
-]);
 
 function getSeatStatus(
   seatId: string,
@@ -43,9 +33,6 @@ function getSeatStatus(
   }
   if (!adminMode && isAdminRowSeat(seatId)) {
     return "admin-reserved";
-  }
-  if (BEST_SEATS.has(seatId)) {
-    return "best";
   }
   return "available";
 }
@@ -76,7 +63,7 @@ export default function SeatMap({
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
 
-            {/* Row A (Only actual seats 9 to 17) */}
+            {/* Row A (Seats 9 to 17) */}
             <div className="my-1.5 flex items-center justify-center gap-4">
               <span className="w-5 text-center text-xs font-semibold text-zinc-500">A</span>
               <div className="flex gap-1.5">
@@ -146,7 +133,6 @@ export default function SeatMap({
                     {/* Left Block */}
                     <div className="flex gap-1.5">
                       {isRowC ? (
-                        // Clean empty spacer for Row C so right side stays aligned
                         <div className="w-[334px]" />
                       ) : (
                         left.map((n) => {
@@ -209,44 +195,11 @@ export default function SeatMap({
           </div>
 
           {/* MINIMALIST 3D SCREEN CURVE */}
-          <div className="mt-12 mb-4 flex flex-col items-center w-full max-w-lg">
+          <div className="mt-12 mb-2 flex flex-col items-center w-full max-w-lg">
             <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-zinc-800 via-white to-zinc-800 opacity-90 shadow-[0_4px_20px_rgba(255,255,255,0.15)]" />
             <p className="mt-3 text-[10px] font-semibold tracking-[0.25em] text-zinc-500 uppercase">
               SCREEN THIS WAY
             </p>
-          </div>
-
-          {/* MINIMALIST LEGEND */}
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400">
-            <div className="flex items-center gap-2">
-              <span className="h-3.5 w-3.5 rounded border border-sky-400/80 bg-sky-500/20" />
-              <span>Best Seats</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3.5 w-3.5 rounded border border-zinc-700 bg-zinc-900" />
-              <span>Available</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3.5 w-3.5 rounded bg-zinc-900/50 border border-zinc-800 text-[9px] text-zinc-600 flex items-center justify-center">
-                ✕
-              </span>
-              <span>Occupied</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-3.5 w-3.5 rounded bg-[#ED1C24]" />
-              <span className="text-white font-medium">Selected</span>
-            </div>
-            {adminMode ? (
-              <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded border border-amber-500/50 bg-amber-500/20" />
-                <span className="text-amber-400">VIP / Admin</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded border border-zinc-800 bg-zinc-900/40" />
-                <span className="text-zinc-500">VIP Rows (A & B)</span>
-              </div>
-            )}
           </div>
 
         </div>
@@ -276,7 +229,6 @@ function Seat({
     interactive &&
     onClick &&
     (state === "available" ||
-      state === "best" ||
       state === "selected" ||
       (adminMode && (state === "reserved" || state === "mine" || state === "admin-reserved")));
 
@@ -288,15 +240,11 @@ function Seat({
     case "mine":
       styles = "bg-emerald-600 text-white font-bold border-emerald-500";
       break;
-    case "best":
-      styles =
-        "border-sky-400/80 bg-sky-500/10 text-sky-200 hover:border-red-500 hover:bg-red-500/20 hover:text-white cursor-pointer";
-      break;
     case "reserved":
       styles = "border-zinc-800 bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
       break;
     case "admin-reserved":
-      styles = "border-zinc-800/80 bg-zinc-900/30 text-zinc-600 cursor-not-allowed";
+      styles = "border-zinc-800/60 bg-zinc-900/20 text-zinc-700 cursor-not-allowed";
       break;
     case "available":
     default:
