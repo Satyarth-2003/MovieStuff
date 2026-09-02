@@ -1,9 +1,12 @@
 import { Redis } from "@upstash/redis";
 
+const redisUrl =
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const redisToken =
+  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
 const hasUpstash =
-  !!process.env.UPSTASH_REDIS_REST_URL &&
-  !!process.env.UPSTASH_REDIS_REST_TOKEN &&
-  process.env.UPSTASH_REDIS_REST_URL.startsWith("http");
+  !!redisUrl && !!redisToken && redisUrl.startsWith("http");
 
 // In-Memory Storage for local development when Upstash credentials are not set
 class LocalMemoryRedis {
@@ -127,7 +130,7 @@ const globalForRedis = globalThis as unknown as {
 
 export const redis: Redis = hasUpstash
   ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL!,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+      url: redisUrl!,
+      token: redisToken!,
     })
   : ((globalForRedis.localRedisSingleton ??= new LocalMemoryRedis()) as unknown as Redis);
