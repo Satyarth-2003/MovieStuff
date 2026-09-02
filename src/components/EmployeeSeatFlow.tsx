@@ -16,7 +16,7 @@ export default function EmployeeSeatFlow() {
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [activeShowtime, setActiveShowtime] = useState("02:45 PM");
+  const [releasing, setReleasing] = useState(false);
 
   // Admin Slide-over Drawer state
   const [showAdminDrawer, setShowAdminDrawer] = useState(false);
@@ -109,8 +109,32 @@ export default function EmployeeSeatFlow() {
         return;
       }
       setEmployee((prev) => (prev ? { ...prev, seat: data.seat!, status: "reserved" } : prev));
+      // Refresh seat map
+      const seatsRes = await fetch("/api/seats");
+      if (seatsRes.ok) {
+        const seatsData = await seatsRes.json();
+        setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
+      }
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function handleReleaseMySeat() {
+    setReleasing(true);
+    try {
+      const res = await fetch("/api/seats/release", { method: "POST" });
+      if (res.ok) {
+        setEmployee((prev) => (prev ? { ...prev, seat: null, status: "not_booked" } : prev));
+        setSelectedSeat(null);
+        const seatsRes = await fetch("/api/seats");
+        if (seatsRes.ok) {
+          const seatsData = await seatsRes.json();
+          setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
+        }
+      }
+    } finally {
+      setReleasing(false);
     }
   }
 
@@ -188,7 +212,7 @@ export default function EmployeeSeatFlow() {
 
       <div className="mx-auto max-w-5xl px-6 pt-8">
         
-        {/* EVENT & VENUE HERO - CLEAN & CLASSY */}
+        {/* EVENT & VENUE HERO - SINGLE 02:45 PM SHOW */}
         <div className="mb-8 flex flex-col justify-between gap-6 border-b border-white/[0.06] pb-8 md:flex-row md:items-end">
           <div>
             <span className="text-[11px] font-semibold tracking-widest text-red-500 uppercase">
@@ -202,30 +226,15 @@ export default function EmployeeSeatFlow() {
             </p>
           </div>
 
-          {/* SHOWTIME SELECTOR CHIPS */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-center">
-              <span className="block text-[9px] uppercase text-zinc-500 font-medium">Sat</span>
-              <span className="text-xs font-bold text-white">05 Sep</span>
+          {/* DEDICATED 02:45 PM SHOWTIME PILL */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-zinc-900/80 px-4 py-2.5">
+              <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <div>
+                <span className="block text-[10px] uppercase font-bold text-zinc-400">Auditorium 1</span>
+                <span className="text-xs font-bold text-white">Sat, 05 Sep · 02:45 PM</span>
+              </div>
             </div>
-
-            {["11:15 AM", "02:45 PM", "06:30 PM", "10:15 PM"].map((time) => {
-              const isSelected = time === activeShowtime;
-              return (
-                <button
-                  key={time}
-                  type="button"
-                  onClick={() => setActiveShowtime(time)}
-                  className={`rounded-xl px-3.5 py-2 text-xs font-medium transition-all ${
-                    isSelected
-                      ? "bg-white text-black font-semibold shadow-sm"
-                      : "border border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700 hover:text-white"
-                  }`}
-                >
-                  {time}
-                </button>
-              );
-            })}
           </div>
         </div>
 
@@ -263,7 +272,7 @@ export default function EmployeeSeatFlow() {
                   <span className="text-white font-medium">{employee.name || employee.email}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Date & Time</span>
+                  <span>Showtime</span>
                   <span className="text-white font-medium">Sat 05 Sep · 02:45 PM</span>
                 </div>
                 <div className="flex justify-between">
@@ -282,17 +291,28 @@ export default function EmployeeSeatFlow() {
                 >
                   Add to Google Calendar
                 </a>
-                <button
-                  onClick={() => window.print()}
-                  className="flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60 py-3 text-xs font-medium text-zinc-300 transition hover:border-zinc-700"
-                >
-                  Print Ticket
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => window.print()}
+                    className="flex-1 rounded-2xl border border-zinc-800 bg-zinc-900/60 py-3 text-xs font-medium text-zinc-300 transition hover:border-zinc-700"
+                  >
+                    Print Ticket
+                  </button>
+
+                  <button
+                    disabled={releasing}
+                    onClick={handleReleaseMySeat}
+                    className="flex-1 rounded-2xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+                  >
+                    {releasing ? "Freeing Seat…" : "Change / Free Seat"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         ) : (
-          /* SEAT MAP VIEW - EXACT SAME VIEW FOR ALL */
+          /* SEAT MAP VIEW */
           <>
             {error && (
               <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center text-xs text-red-400">

@@ -25,40 +25,29 @@ const BEST_SEATS = new Set([
   "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14",
 ]);
 
-// Blocked seats according to theatre blueprint
-const STRUCTURAL_BLOCKED = new Set([
-  "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10",
-  "D13", "D14",
-]);
-
 function getSeatStatus(
   seatId: string,
   reservedSeats: Set<string>,
   mySeat: string | null | undefined,
   selectedSeat: string | null | undefined,
   adminMode: boolean
-): { state: SeatState; isStructuralBlocked: boolean } {
-  const isStructuralBlocked = STRUCTURAL_BLOCKED.has(seatId);
-
-  if (isStructuralBlocked) {
-    return { state: "reserved", isStructuralBlocked: true };
-  }
+): SeatState {
   if (mySeat === seatId) {
-    return { state: "mine", isStructuralBlocked: false };
+    return "mine";
   }
   if (selectedSeat === seatId) {
-    return { state: "selected", isStructuralBlocked: false };
+    return "selected";
   }
   if (reservedSeats.has(seatId)) {
-    return { state: "reserved", isStructuralBlocked: false };
+    return "reserved";
   }
   if (!adminMode && isAdminRowSeat(seatId)) {
-    return { state: "admin-reserved", isStructuralBlocked: false };
+    return "admin-reserved";
   }
   if (BEST_SEATS.has(seatId)) {
-    return { state: "best", isStructuralBlocked: false };
+    return "best";
   }
-  return { state: "available", isStructuralBlocked: false };
+  return "available";
 }
 
 export default function SeatMap({
@@ -75,7 +64,7 @@ export default function SeatMap({
   return (
     <div className="w-full select-none">
       <div className="w-full overflow-x-auto rounded-3xl border border-white/[0.06] bg-[#0A0C10] p-6 sm:p-8 backdrop-blur-xl">
-        <div className="min-w-[820px] flex flex-col items-center">
+        <div className="min-w-[800px] flex flex-col items-center">
           
           {/* SECTION: PREMIUM RECLINER */}
           <div className="w-full max-w-3xl mb-8">
@@ -87,21 +76,13 @@ export default function SeatMap({
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
 
-            {/* Row A */}
+            {/* Row A (Only actual seats 9 to 17) */}
             <div className="my-1.5 flex items-center justify-center gap-4">
               <span className="w-5 text-center text-xs font-semibold text-zinc-500">A</span>
               <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
-                  <div
-                    key={`A${n}`}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-transparent bg-zinc-900/20 text-[10px] text-zinc-700"
-                  >
-                    ✕
-                  </div>
-                ))}
                 {[9, 10, 11, 12, 13, 14, 15, 16, 17].map((n) => {
                   const seatId = `A${n}`;
-                  const { state } = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, adminMode);
+                  const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, adminMode);
                   return (
                     <Seat
                       key={seatId}
@@ -118,13 +99,13 @@ export default function SeatMap({
               </div>
             </div>
 
-            {/* Row B */}
+            {/* Row B (Seats 1 to 14) */}
             <div className="my-1.5 flex items-center justify-center gap-4">
               <span className="w-5 text-center text-xs font-semibold text-zinc-500">B</span>
               <div className="flex gap-1.5">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => {
                   const seatId = `B${n}`;
-                  const { state } = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, adminMode);
+                  const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, adminMode);
                   return (
                     <Seat
                       key={seatId}
@@ -156,6 +137,7 @@ export default function SeatMap({
               {goldRows.map((row) => {
                 const left = Array.from({ length: 10 }, (_, i) => i + 1);
                 const right = Array.from({ length: 10 }, (_, i) => i + 11);
+                const isRowC = row === "C";
 
                 return (
                   <div key={row} className="flex items-center gap-4">
@@ -163,38 +145,33 @@ export default function SeatMap({
 
                     {/* Left Block */}
                     <div className="flex gap-1.5">
-                      {left.map((n) => {
-                        const seatId = `${row}${n}`;
-                        const { state, isStructuralBlocked } = getSeatStatus(
-                          seatId,
-                          reservedSeats,
-                          mySeat,
-                          selectedSeat,
-                          adminMode
-                        );
-                        if (isStructuralBlocked) {
-                          return (
-                            <div
-                              key={seatId}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-transparent bg-zinc-900/20 text-[10px] text-zinc-700"
-                            >
-                              ✕
-                            </div>
+                      {isRowC ? (
+                        // Clean empty spacer for Row C so right side stays aligned
+                        <div className="w-[334px]" />
+                      ) : (
+                        left.map((n) => {
+                          const seatId = `${row}${n}`;
+                          const state = getSeatStatus(
+                            seatId,
+                            reservedSeats,
+                            mySeat,
+                            selectedSeat,
+                            adminMode
                           );
-                        }
-                        return (
-                          <Seat
-                            key={seatId}
-                            seatId={seatId}
-                            n={n}
-                            state={state}
-                            interactive={interactive}
-                            adminMode={adminMode}
-                            onClick={onSeatClick}
-                            title={ownerLabel?.(seatId)}
-                          />
-                        );
-                      })}
+                          return (
+                            <Seat
+                              key={seatId}
+                              seatId={seatId}
+                              n={n}
+                              state={state}
+                              interactive={interactive}
+                              adminMode={adminMode}
+                              onClick={onSeatClick}
+                              title={ownerLabel?.(seatId)}
+                            />
+                          );
+                        })
+                      )}
                     </div>
 
                     {/* Aisle */}
@@ -204,23 +181,13 @@ export default function SeatMap({
                     <div className="flex gap-1.5">
                       {right.map((n) => {
                         const seatId = `${row}${n}`;
-                        const { state, isStructuralBlocked } = getSeatStatus(
+                        const state = getSeatStatus(
                           seatId,
                           reservedSeats,
                           mySeat,
                           selectedSeat,
                           adminMode
                         );
-                        if (isStructuralBlocked) {
-                          return (
-                            <div
-                              key={seatId}
-                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-transparent bg-zinc-900/20 text-[10px] text-zinc-700"
-                            >
-                              ✕
-                            </div>
-                          );
-                        }
                         return (
                           <Seat
                             key={seatId}
@@ -260,7 +227,7 @@ export default function SeatMap({
               <span>Available</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-zinc-900/50 text-[9px] text-zinc-600">
+              <span className="h-3.5 w-3.5 rounded bg-zinc-900/50 border border-zinc-800 text-[9px] text-zinc-600 flex items-center justify-center">
                 ✕
               </span>
               <span>Occupied</span>
@@ -269,10 +236,15 @@ export default function SeatMap({
               <span className="h-3.5 w-3.5 rounded bg-[#ED1C24]" />
               <span className="text-white font-medium">Selected</span>
             </div>
-            {adminMode && (
+            {adminMode ? (
               <div className="flex items-center gap-2">
                 <span className="h-3.5 w-3.5 rounded border border-amber-500/50 bg-amber-500/20" />
                 <span className="text-amber-400">VIP / Admin</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 rounded border border-zinc-800 bg-zinc-900/40" />
+                <span className="text-zinc-500">VIP Rows (A & B)</span>
               </div>
             )}
           </div>
@@ -321,10 +293,10 @@ function Seat({
         "border-sky-400/80 bg-sky-500/10 text-sky-200 hover:border-red-500 hover:bg-red-500/20 hover:text-white cursor-pointer";
       break;
     case "reserved":
-      styles = "border-transparent bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
+      styles = "border-zinc-800 bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
       break;
     case "admin-reserved":
-      styles = "border-zinc-800 bg-zinc-900/40 text-zinc-600 cursor-not-allowed";
+      styles = "border-zinc-800/80 bg-zinc-900/30 text-zinc-600 cursor-not-allowed";
       break;
     case "available":
     default:
