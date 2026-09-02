@@ -71,7 +71,7 @@ export default function SeatMap({
             <div className="mb-4 flex items-center justify-center gap-3">
               <div className="h-px flex-1 bg-white/[0.06]" />
               <span className="text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
-                PREMIUM RECLINER · ₹300
+                PREMIUM RECLINER
               </span>
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
@@ -128,7 +128,7 @@ export default function SeatMap({
             <div className="mb-4 flex items-center justify-center gap-3">
               <div className="h-px flex-1 bg-white/[0.06]" />
               <span className="text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
-                GOLD · ₹200
+                GOLD
               </span>
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
