@@ -11,11 +11,19 @@ type LoadState = "loading" | "ready" | "error";
 export default function EmployeeSeatFlow() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [reservedSeats, setReservedSeats] = useState<Set<string>>(new Set());
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [activeShowtime, setActiveShowtime] = useState("02:45 PM");
+
+  // Admin Slide-over Drawer state
+  const [showAdminDrawer, setShowAdminDrawer] = useState(false);
+  const [whitelistText, setWhitelistText] = useState("");
+  const [adminBusy, setAdminBusy] = useState(false);
+  const [adminMsg, setAdminMsg] = useState<string | null>(null);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
 
   async function loadAll() {
     setLoadState("loading");
@@ -24,13 +32,14 @@ export default function EmployeeSeatFlow() {
       if (!meRes.ok) throw new Error("Failed to load your profile.");
       const meData = await meRes.json();
       setEmployee(meData.employee);
+      setIsAdmin(!!meData.isAdmin);
 
-      if (!meData.employee.seat) {
-        const seatsRes = await fetch("/api/seats");
-        if (!seatsRes.ok) throw new Error("Failed to load the seat map.");
+      const seatsRes = await fetch("/api/seats");
+      if (seatsRes.ok) {
         const seatsData = await seatsRes.json();
-        setReservedSeats(new Set<string>(seatsData.reservedSeats));
+        setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
       }
+
       setLoadState("ready");
     } catch {
       setError("Something went wrong loading your seat information. Please refresh.");
@@ -41,6 +50,38 @@ export default function EmployeeSeatFlow() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  async function loadAdminData() {
+    try {
+      const res = await fetch("/api/admin/employees");
+      if (res.ok) {
+        const data = await res.json();
+        setAllEmployees(data.employees || []);
+      }
+    } catch {}
+  }
+
+  async function handleAddWhitelist() {
+    if (!whitelistText.trim()) return;
+    setAdminBusy(true);
+    try {
+      const res = await fetch("/api/admin/whitelist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: whitelistText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setAdminMsg(`Added ${data.added} guests to list.`);
+      setWhitelistText("");
+      await loadAdminData();
+      setTimeout(() => setAdminMsg(null), 3000);
+    } catch (e) {
+      setAdminMsg(e instanceof Error ? e.message : "Failed to add guests.");
+    } finally {
+      setAdminBusy(false);
+    }
+  }
 
   async function handleConfirm() {
     if (!selectedSeat) return;
@@ -110,8 +151,28 @@ export default function EmployeeSeatFlow() {
       {/* MINIMAL NAV HEADER */}
       <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07080A]/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <AddaLogo height={24} variant="white" />
+          <div className="flex items-center gap-3">
+            <AddaLogo height={24} variant="white" />
+            {isAdmin && (
+              <span className="rounded bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-400">
+                Admin
+              </span>
+            )}
+          </div>
+
           <div className="flex items-center gap-4">
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setShowAdminDrawer(true);
+                  loadAdminData();
+                }}
+                className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white"
+              >
+                Guestlist & VIP Control
+              </button>
+            )}
+
             <span className="hidden text-xs text-zinc-400 sm:inline">
               {employee.name || employee.email}
             </span>
@@ -168,7 +229,7 @@ export default function EmployeeSeatFlow() {
           </div>
         </div>
 
-        {/* BODY */}
+        {/* BODY: CONFIRMED PASS OR SEAT SELECTION */}
         {isConfirmed ? (
           /* DISTRICT / CRED MINIMAL VIP TICKET PASS */
           <div className="mx-auto max-w-md">
@@ -231,7 +292,7 @@ export default function EmployeeSeatFlow() {
             </div>
           </div>
         ) : (
-          /* SEAT MAP VIEW */
+          /* SEAT MAP VIEW - EXACT SAME VIEW FOR ALL */
           <>
             {error && (
               <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center text-xs text-red-400">
@@ -242,6 +303,7 @@ export default function EmployeeSeatFlow() {
             <SeatMap
               reservedSeats={reservedSeats}
               selectedSeat={selectedSeat}
+              adminMode={isAdmin}
               onSeatClick={(seatId) => setSelectedSeat((prev) => (prev === seatId ? null : seatId))}
             />
 
@@ -261,7 +323,9 @@ export default function EmployeeSeatFlow() {
                     </div>
                   ) : (
                     <div>
-                      <p className="text-xs font-medium text-zinc-400">Select a seat on the map</p>
+                      <p className="text-xs font-medium text-zinc-400">
+                        {isAdmin ? "Select any seat (including upper recliner rows)" : "Select a seat on the map (Rows C to M)"}
+                      </p>
                       <p className="text-[11px] text-zinc-600">Click any available seat above</p>
                     </div>
                   )}
@@ -281,6 +345,84 @@ export default function EmployeeSeatFlow() {
         )}
 
       </div>
+
+      {/* ADMIN SLIDE-OVER DRAWER */}
+      {showAdminDrawer && isAdmin && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm">
+          <div className="h-full w-full max-w-md bg-[#0E1015] border-l border-white/[0.08] p-6 overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <div>
+                <h3 className="text-base font-bold text-white">Guestlist & VIP Control</h3>
+                <p className="text-xs text-zinc-400">Add employees and manage seats</p>
+              </div>
+              <button
+                onClick={() => setShowAdminDrawer(false)}
+                className="text-zinc-400 hover:text-white text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {adminMsg && (
+              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-400">
+                {adminMsg}
+              </div>
+            )}
+
+            {/* ADD GUESTS */}
+            <div className="mt-6">
+              <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
+                Upload / Paste Guest Emails
+              </label>
+              <textarea
+                value={whitelistText}
+                onChange={(e) => setWhitelistText(e.target.value)}
+                rows={3}
+                placeholder={"employee1@adda247.com\nemployee2@adda247.com"}
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-xs text-white placeholder:text-zinc-600 focus:outline-none"
+              />
+              <button
+                disabled={adminBusy || !whitelistText.trim()}
+                onClick={handleAddWhitelist}
+                className="mt-2 w-full rounded-xl bg-white py-2.5 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-40"
+              >
+                Add to Approved Guestlist
+              </button>
+            </div>
+
+            {/* QUICK GUEST LIST */}
+            <div className="mt-8">
+              <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+                All Guests ({allEmployees.length})
+              </h4>
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                {allEmployees.map((emp) => (
+                  <div
+                    key={emp.email}
+                    className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 text-xs"
+                  >
+                    <div>
+                      <p className="font-medium text-white">{emp.name || emp.email.split("@")[0]}</p>
+                      <p className="text-[10px] text-zinc-500 font-mono">{emp.email}</p>
+                    </div>
+                    <div>
+                      {emp.seat ? (
+                        <span className="rounded-md bg-zinc-800 px-2 py-0.5 font-mono text-[10px] text-zinc-300">
+                          {emp.seat}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-zinc-600">No seat</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

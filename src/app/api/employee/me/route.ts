@@ -8,5 +8,8 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
   const employee = await ensureEmployee(identity.email, identity.name);
-  return NextResponse.json({ employee });
+  return NextResponse.json({
+    employee,
+    isAdmin: identity.isAdmin,
+  });
 }

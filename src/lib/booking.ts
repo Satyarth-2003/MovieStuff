@@ -126,8 +126,12 @@ redis.call("HSET", KEYS[2], "seat", ARGV[2], "status", "reserved", "bookingTime"
 return "OK"
 `;
 
-export async function confirmSeatForEmployee(email: string, seatId: string): Promise<ConfirmResult> {
-  if (isAdminRowSeat(seatId)) return "ADMIN_ROW";
+export async function confirmSeatForEmployee(
+  email: string,
+  seatId: string,
+  isAdmin = false
+): Promise<ConfirmResult> {
+  if (!isAdmin && isAdminRowSeat(seatId)) return "ADMIN_ROW";
   const bookingTime = new Date().toISOString();
   const result = await redis.eval(
     CONFIRM_SCRIPT,

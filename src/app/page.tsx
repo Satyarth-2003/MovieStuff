@@ -10,10 +10,6 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const role = (session.user as { role?: string }).role;
-  if (role === "admin") {
-    redirect("/admin");
-  }
-
+  // Both Admin and Normal users share the same unified, classy view
   return <EmployeeSeatFlow />;
 }

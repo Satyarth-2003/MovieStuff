@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   await ensureEmployee(identity.email, identity.name);
-  const result = await confirmSeatForEmployee(identity.email, seatId);
+  const result = await confirmSeatForEmployee(identity.email, seatId, identity.isAdmin);
 
   if (result === "ADMIN_ROW") {
     return NextResponse.json({ error: "This row is reserved for admin use only." }, { status: 403 });
