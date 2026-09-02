@@ -1,21 +1,148 @@
-import { Redis } from "@upstash/redis";
+import { Redis as UpstashRedis } from "@upstash/redis";
+import IORedis from "ioredis";
 
-const redisUrl =
-  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const redisToken =
-  process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+export interface UnifiedRedisClient {
+  sismember(key: string, member: string): Promise<number | boolean>;
+  sadd(key: string, ...members: string[]): Promise<number>;
+  srem(key: string, member: string): Promise<number>;
+  smembers(key: string): Promise<string[]>;
+  hgetall<T extends Record<string, string>>(key: string): Promise<T | null>;
+  hset(key: string, data: Record<string, string>): Promise<number>;
+  del(...keys: string[]): Promise<number>;
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<unknown>;
+  mget<T extends (string | null)[]>(...keys: string[]): Promise<T>;
+  eval(script: string, keys: string[], args: (string | number)[]): Promise<unknown>;
+}
 
-const hasUpstash =
-  !!redisUrl && !!redisToken && redisUrl.startsWith("http");
+// 1. Adapter for standard TCP Redis URLs (redis:// or rediss://) via ioredis
+class IoRedisAdapter implements UnifiedRedisClient {
+  private client: IORedis;
 
-// In-Memory Storage for local development when Upstash credentials are not set
-class LocalMemoryRedis {
+  constructor(url: string) {
+    this.client = new IORedis(url, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: false,
+      connectTimeout: 10000,
+    });
+  }
+
+  async sismember(key: string, member: string): Promise<number> {
+    return this.client.sismember(key, member);
+  }
+
+  async sadd(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) return 0;
+    return this.client.sadd(key, ...members);
+  }
+
+  async srem(key: string, member: string): Promise<number> {
+    return this.client.srem(key, member);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return this.client.smembers(key);
+  }
+
+  async hgetall<T extends Record<string, string>>(key: string): Promise<T | null> {
+    const res = await this.client.hgetall(key);
+    if (!res || Object.keys(res).length === 0) return null;
+    return res as T;
+  }
+
+  async hset(key: string, data: Record<string, string>): Promise<number> {
+    return this.client.hset(key, data);
+  }
+
+  async del(...keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    return this.client.del(...keys);
+  }
+
+  async get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  async set(key: string, value: string): Promise<unknown> {
+    return this.client.set(key, value);
+  }
+
+  async mget<T extends (string | null)[]>(...keys: string[]): Promise<T> {
+    if (keys.length === 0) return [] as unknown as T;
+    const res = await this.client.mget(...keys);
+    return res as unknown as T;
+  }
+
+  async eval(script: string, keys: string[], args: (string | number)[]): Promise<unknown> {
+    return this.client.eval(script, keys.length, ...keys, ...args.map(String));
+  }
+}
+
+// 2. Adapter for Upstash REST client
+class UpstashAdapter implements UnifiedRedisClient {
+  private client: UpstashRedis;
+
+  constructor(url: string, token: string) {
+    this.client = new UpstashRedis({ url, token });
+  }
+
+  async sismember(key: string, member: string): Promise<number> {
+    const res = await this.client.sismember(key, member);
+    return Number(res) === 1 ? 1 : 0;
+  }
+
+  async sadd(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) return 0;
+    const [first, ...rest] = members;
+    return this.client.sadd(key, first, ...rest);
+  }
+
+  async srem(key: string, member: string): Promise<number> {
+    return this.client.srem(key, member);
+  }
+
+  async smembers(key: string): Promise<string[]> {
+    return (await this.client.smembers(key)) as string[];
+  }
+
+  async hgetall<T extends Record<string, string>>(key: string): Promise<T | null> {
+    return this.client.hgetall<T>(key);
+  }
+
+  async hset(key: string, data: Record<string, string>): Promise<number> {
+    return this.client.hset(key, data);
+  }
+
+  async del(...keys: string[]): Promise<number> {
+    if (keys.length === 0) return 0;
+    return this.client.del(...keys);
+  }
+
+  async get(key: string): Promise<string | null> {
+    return this.client.get<string>(key);
+  }
+
+  async set(key: string, value: string): Promise<unknown> {
+    return this.client.set(key, value);
+  }
+
+  async mget<T extends (string | null)[]>(...keys: string[]): Promise<T> {
+    if (keys.length === 0) return [] as unknown as T;
+    return this.client.mget<T>(...keys);
+  }
+
+  async eval(script: string, keys: string[], args: (string | number)[]): Promise<unknown> {
+    return this.client.eval(script, keys, args);
+  }
+}
+
+// 3. In-Memory fallback for local dev when no Redis URL is provided
+class LocalMemoryRedis implements UnifiedRedisClient {
   private sets: Map<string, Set<string>> = new Map();
   private hashes: Map<string, Record<string, string>> = new Map();
   private strings: Map<string, string> = new Map();
 
   constructor() {
-    // Seed initial admin/test whitelist if empty
     const initialWhitelist = new Set([
       "satyarth.prakash@adda247.com",
       "ayush.chauhan@adda247.com",
@@ -77,7 +204,7 @@ class LocalMemoryRedis {
     return this.strings.get(key) || null;
   }
 
-  async set(key: string, value: string): Promise<"OK"> {
+  async set(key: string, value: string): Promise<string> {
     this.strings.set(key, value);
     return "OK";
   }
@@ -91,7 +218,7 @@ class LocalMemoryRedis {
     _script: string,
     keys: string[],
     args: (string | number)[]
-  ): Promise<string> {
+  ): Promise<unknown> {
     const seatKey = keys[0];
     const employeeKey = keys[1];
     const userEmail = String(args[0]).toLowerCase();
@@ -105,7 +232,6 @@ class LocalMemoryRedis {
 
     const currentSeat = this.hashes.get(employeeKey)?.seat;
     if (currentSeat && currentSeat !== seatId && currentSeat !== "") {
-      // Reassignment: delete old seat
       this.strings.delete(`seat:${currentSeat}`);
     }
 
@@ -123,14 +249,25 @@ class LocalMemoryRedis {
   }
 }
 
-// Global singleton to persist in Next.js hot reload
+// Global singleton across Next.js reloads
 const globalForRedis = globalThis as unknown as {
-  localRedisSingleton?: LocalMemoryRedis;
+  redisClientSingleton?: UnifiedRedisClient;
 };
 
-export const redis: Redis = hasUpstash
-  ? new Redis({
-      url: redisUrl!,
-      token: redisToken!,
-    })
-  : ((globalForRedis.localRedisSingleton ??= new LocalMemoryRedis()) as unknown as Redis);
+function initRedis(): UnifiedRedisClient {
+  const tcpUrl = process.env.REDIS_URL;
+  if (tcpUrl && (tcpUrl.startsWith("redis://") || tcpUrl.startsWith("rediss://"))) {
+    return new IoRedisAdapter(tcpUrl);
+  }
+
+  const restUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const restToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+
+  if (restUrl && restToken && restUrl.startsWith("http")) {
+    return new UpstashAdapter(restUrl, restToken);
+  }
+
+  return new LocalMemoryRedis();
+}
+
+export const redis: UnifiedRedisClient = (globalForRedis.redisClientSingleton ??= initRedis());
