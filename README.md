@@ -34,11 +34,24 @@ Visit `http://localhost:3000`.
 
 ## Deploying to Vercel
 
-1. Push this project to a git repo and import it in Vercel.
-2. Add an Upstash Redis database via the Vercel Marketplace integration (this auto-populates `UPSTASH_REDIS_REST_URL`/`TOKEN`), or paste them in manually from the Upstash console.
-3. Set the remaining environment variables in the Vercel project settings.
-4. Set `NEXTAUTH_URL` to your production URL and add the matching Google OAuth redirect URI.
-5. Deploy. Rows A and B are always admin-reserved and never shown as selectable to employees, regardless of environment.
+This repo is already a local git repository (`git log` to check) — either push it to GitHub/GitLab/Bitbucket and import it from the Vercel dashboard, or deploy straight from the CLI:
+
+```bash
+vercel login   # interactive — opens a browser/email confirmation
+vercel link    # or `vercel` to create + link a new project
+vercel env add UPSTASH_REDIS_REST_URL production
+vercel env add UPSTASH_REDIS_REST_TOKEN production
+vercel env add NEXTAUTH_SECRET production
+vercel env add NEXTAUTH_URL production        # https://<your-vercel-domain>
+vercel env add GOOGLE_CLIENT_ID production
+vercel env add GOOGLE_CLIENT_SECRET production
+vercel env add ADMIN_EMAILS production
+vercel --prod
+```
+
+1. **Upstash Redis**: in the Vercel dashboard → your project → Storage → Marketplace Database Providers → Upstash → create a Redis database. This auto-populates `UPSTASH_REDIS_REST_URL`/`TOKEN` as project env vars, so you can skip those two `vercel env add` calls above if you provision it this way.
+2. **Google OAuth redirect URI**: in Google Cloud Console → APIs & Services → Credentials → your OAuth client → Authorized redirect URIs, add `https://<your-vercel-domain>/api/auth/callback/google` (keep `http://localhost:3000/api/auth/callback/google` too, for local dev). Vercel preview deployments get their own random domain each time, so redirect URIs only reliably work for `localhost` and the production domain — use `vercel --prod` / the assigned production domain for anything you need Google sign-in to work on.
+3. Rows A and B are always admin-reserved and never shown as selectable to employees, regardless of environment — this is enforced server-side, not just in the UI.
 
 ## Data model (Redis)
 
