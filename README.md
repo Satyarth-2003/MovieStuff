@@ -18,7 +18,7 @@ Copy `.env.example` to `.env.local` and fill in:
 | `NEXTAUTH_SECRET` | Any long random string, e.g. `openssl rand -base64 32`. |
 | `NEXTAUTH_URL` | `http://localhost:3000` locally; your deployed URL in production. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google Cloud Console → APIs & Services → Credentials → OAuth client ID (Web application). Add `http://localhost:3000/api/auth/callback/google` and `https://<your-domain>/api/auth/callback/google` as authorized redirect URIs. |
-| `ADMIN_EMAILS` | Comma-separated Google account emails allowed into `/admin`, e.g. `satyarth.prakash@adda247.com`. |
+| `ADMIN_EMAILS` | Comma-separated Google account emails allowed into `/admin`, e.g. `admin1@adda247.com,admin2@adda247.com`. |
 
 ## Local development
 
