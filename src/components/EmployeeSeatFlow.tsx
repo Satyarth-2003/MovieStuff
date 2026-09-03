@@ -20,6 +20,9 @@ export default function EmployeeSeatFlow() {
   const [confirming, setConfirming] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
+  // Admin View Switcher: "map" | "ticket"
+  const [adminTab, setAdminTab] = useState<"map" | "ticket">("map");
+
   // Admin Selected Seat Action Modal state
   const [adminSeatModal, setAdminSeatModal] = useState<string | null>(null);
   const [reassignEmail, setReassignEmail] = useState("");
@@ -211,8 +214,9 @@ export default function EmployeeSeatFlow() {
 
   function handleSeatClick(seatId: string) {
     if (isAdmin) {
+      // If seat is reserved by anyone OR is admin's own seat, open admin management modal
       const owner = seatOwners[seatId];
-      if (owner && owner !== employee?.email) {
+      if (owner || seatId === employee?.seat || reservedSeats.has(seatId)) {
         setAdminSeatModal(seatId);
         return;
       }
@@ -251,6 +255,9 @@ export default function EmployeeSeatFlow() {
   const isRecliner = selectedSeat?.startsWith("A") || selectedSeat?.startsWith("B");
   const seatTier = isRecliner ? "Premium Recliner" : "Gold Tier";
 
+  // For Admins who have confirmed a seat, let them view either the Auditorium Map or their Ticket Pass
+  const showTicketView = !isAdmin && isConfirmed ? true : isAdmin && isConfirmed && adminTab === "ticket";
+
   return (
     <main className="min-h-screen bg-[#07080A] pb-28 text-white">
       
@@ -267,6 +274,28 @@ export default function EmployeeSeatFlow() {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Admin Tabs Toggle */}
+            {isAdmin && isConfirmed && (
+              <div className="flex items-center rounded-xl border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+                <button
+                  onClick={() => setAdminTab("map")}
+                  className={`rounded-lg px-3 py-1 font-medium transition ${
+                    adminTab === "map" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  Auditorium Seats
+                </button>
+                <button
+                  onClick={() => setAdminTab("ticket")}
+                  className={`rounded-lg px-3 py-1 font-medium transition ${
+                    adminTab === "ticket" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  My Pass ({employee.seat})
+                </button>
+              </div>
+            )}
+
             {isAdmin && (
               <button
                 onClick={() => {
@@ -327,7 +356,7 @@ export default function EmployeeSeatFlow() {
         )}
 
         {/* BODY: CONFIRMED PASS OR SEAT SELECTION */}
-        {isConfirmed ? (
+        {showTicketView ? (
           /* DISTRICT / CRED MINIMAL VIP TICKET PASS (PRINT-READY IN DARK MODE) */
           <div className="mx-auto max-w-md">
             <div className="ticket-card rounded-3xl border border-white/[0.08] bg-[#0E1015] p-8 shadow-2xl">
@@ -408,9 +437,21 @@ export default function EmployeeSeatFlow() {
               </div>
             )}
 
+            {isAdmin && (
+              <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/[0.06] bg-zinc-900/50 px-4 py-2.5 text-xs text-zinc-400">
+                <span>
+                  Admin Mode Active: Click any booked seat to view details, release, or reassign it.
+                </span>
+                <span className="font-mono text-amber-400 font-medium">
+                  {reservedSeats.size} Seats Reserved
+                </span>
+              </div>
+            )}
+
             <SeatMap
               reservedSeats={reservedSeats}
               selectedSeat={selectedSeat}
+              mySeat={employee.seat}
               adminMode={isAdmin}
               ownerLabel={(seatId) => seatOwners[seatId]}
               onSeatClick={handleSeatClick}
@@ -433,7 +474,7 @@ export default function EmployeeSeatFlow() {
                   ) : (
                     <div>
                       <p className="text-xs font-medium text-zinc-400">
-                        {isAdmin ? "Select any seat (including upper recliner rows)" : "Select a seat on the map (Rows C to M)"}
+                        {isAdmin ? "Select any seat or click booked seats to manage" : "Select a seat on the map (Rows C to M)"}
                       </p>
                       <p className="text-[11px] text-zinc-600">Click any available seat above</p>
                     </div>
@@ -527,7 +568,7 @@ export default function EmployeeSeatFlow() {
         </div>
       )}
 
-      {/* ADMIN SEAT INSPECT & ACTION MODAL */}
+      {/* ADMIN SEAT INSPECT & RELEASE MODAL */}
       {adminSeatModal && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015] p-6 shadow-2xl">
@@ -540,21 +581,31 @@ export default function EmployeeSeatFlow() {
             </div>
 
             <div className="my-4 rounded-2xl bg-zinc-900/60 p-4 text-xs">
-              <span className="text-zinc-500">Currently Reserved By:</span>
-              <p className="font-semibold text-white font-mono mt-0.5">{seatOwners[adminSeatModal] || "Unknown"}</p>
+              <span className="text-zinc-500">Current Status:</span>
+              <p className="font-semibold text-white mt-1">
+                {seatOwners[adminSeatModal]
+                  ? `Booked by ${seatOwners[adminSeatModal]}`
+                  : adminSeatModal === employee?.seat
+                  ? `Booked by You (${employee.email})`
+                  : reservedSeats.has(adminSeatModal)
+                  ? "Booked"
+                  : "Available"}
+              </p>
             </div>
 
             <div className="space-y-3">
-              <button
-                disabled={adminBusy}
-                onClick={() => handleAdminReleaseSeat({ seatId: adminSeatModal })}
-                className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
-              >
-                Release / Free this Seat
-              </button>
+              {(seatOwners[adminSeatModal] || reservedSeats.has(adminSeatModal) || adminSeatModal === employee?.seat) && (
+                <button
+                  disabled={adminBusy}
+                  onClick={() => handleAdminReleaseSeat({ seatId: adminSeatModal })}
+                  className="w-full rounded-2xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
+                >
+                  {adminBusy ? "Releasing…" : "Release / Free this Seat"}
+                </button>
+              )}
 
               <div className="border-t border-white/[0.06] pt-3">
-                <label className="block text-[11px] text-zinc-400 mb-1.5">Reassign this seat to another user:</label>
+                <label className="block text-[11px] text-zinc-400 mb-1.5">Reassign seat to guest:</label>
                 <div className="flex gap-2">
                   <select
                     value={reassignEmail}
@@ -573,7 +624,7 @@ export default function EmployeeSeatFlow() {
                     onClick={() => handleAdminAssignSeat(reassignEmail, adminSeatModal)}
                     className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200 disabled:opacity-40"
                   >
-                    Reassign
+                    Assign
                   </button>
                 </div>
               </div>

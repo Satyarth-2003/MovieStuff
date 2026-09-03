@@ -79,7 +79,7 @@ export default function SeatMap({
                       interactive={interactive}
                       adminMode={adminMode}
                       onClick={onSeatClick}
-                      title={ownerLabel?.(seatId)}
+                      owner={ownerLabel?.(seatId)}
                     />
                   );
                 })}
@@ -102,7 +102,7 @@ export default function SeatMap({
                       interactive={interactive}
                       adminMode={adminMode}
                       onClick={onSeatClick}
-                      title={ownerLabel?.(seatId)}
+                      owner={ownerLabel?.(seatId)}
                     />
                   );
                 })}
@@ -153,7 +153,7 @@ export default function SeatMap({
                               interactive={interactive}
                               adminMode={adminMode}
                               onClick={onSeatClick}
-                              title={ownerLabel?.(seatId)}
+                              owner={ownerLabel?.(seatId)}
                             />
                           );
                         })
@@ -183,7 +183,7 @@ export default function SeatMap({
                             interactive={interactive}
                             adminMode={adminMode}
                             onClick={onSeatClick}
-                            title={ownerLabel?.(seatId)}
+                            owner={ownerLabel?.(seatId)}
                           />
                         );
                       })}
@@ -215,7 +215,7 @@ function Seat({
   interactive,
   adminMode,
   onClick,
-  title,
+  owner,
 }: {
   seatId: string;
   n: number;
@@ -223,8 +223,9 @@ function Seat({
   interactive: boolean;
   adminMode?: boolean;
   onClick?: (seatId: string) => void;
-  title?: string;
+  owner?: string;
 }) {
+  // Clickable conditions
   const clickable =
     interactive &&
     onClick &&
@@ -233,15 +234,25 @@ function Seat({
       (adminMode && (state === "reserved" || state === "mine" || state === "admin-reserved")));
 
   let styles = "";
+  let displayText: string | number = n;
+
   switch (state) {
     case "selected":
       styles = "bg-[#ED1C24] text-white font-bold border-[#ED1C24] shadow-md scale-105";
       break;
     case "mine":
-      styles = "bg-emerald-600 text-white font-bold border-emerald-500";
+      styles = "bg-emerald-600 text-white font-bold border-emerald-500 cursor-pointer";
       break;
     case "reserved":
-      styles = "border-zinc-800 bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
+      if (adminMode) {
+        // In Admin mode: Booked seats are visibly distinct and clickable to release / inspect
+        styles =
+          "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:border-red-500 hover:bg-red-500/20 hover:text-white cursor-pointer hover:scale-105";
+        displayText = n;
+      } else {
+        styles = "border-zinc-800/80 bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
+        displayText = "✕";
+      }
       break;
     case "admin-reserved":
       styles = "border-zinc-800/60 bg-zinc-900/20 text-zinc-700 cursor-not-allowed";
@@ -253,15 +264,22 @@ function Seat({
       break;
   }
 
+  const tooltip =
+    state === "reserved" && owner
+      ? `Seat ${seatId} · Booked by ${owner}${adminMode ? " (Click to Release / Reassign)" : ""}`
+      : state === "mine"
+      ? `Your Seat: ${seatId}${adminMode ? " (Click to Release / Change)" : ""}`
+      : `Seat ${seatId}`;
+
   return (
     <button
       type="button"
-      title={title || `Seat ${seatId}`}
+      title={tooltip}
       disabled={!clickable}
       onClick={() => clickable && onClick?.(seatId)}
       className={`flex h-7 w-7 items-center justify-center rounded-lg border text-[11px] font-medium transition-all duration-150 active:scale-95 ${styles}`}
     >
-      {state === "reserved" ? "✕" : n}
+      {displayText}
     </button>
   );
 }
