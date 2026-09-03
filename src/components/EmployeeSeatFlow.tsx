@@ -727,11 +727,36 @@ export default function EmployeeSeatFlow() {
                         <button
                           disabled={adminBusy}
                           onClick={() => handleAdminReleaseSeat({ email: emp.email })}
-                          className="text-[11px] font-medium text-red-400 hover:text-red-300 ml-auto"
+                          className="text-[11px] font-medium text-amber-400 hover:text-amber-300 ml-auto"
                         >
-                          Release
+                          Release Seat
                         </button>
                       )}
+                      <button
+                        disabled={adminBusy}
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to remove ${emp.email} from the guestlist?`)) {
+                            setAdminBusy(true);
+                            try {
+                              const res = await fetch("/api/admin/whitelist", {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ email: emp.email }),
+                              });
+                              if (res.ok) {
+                                setAdminMsg(`Removed ${emp.email} from guest list.`);
+                                await refreshSeats();
+                                setTimeout(() => setAdminMsg(null), 3000);
+                              }
+                            } finally {
+                              setAdminBusy(false);
+                            }
+                          }
+                        }}
+                        className={`text-[11px] font-medium text-red-400 hover:text-red-300 ${!emp.seat ? "ml-auto" : ""}`}
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                 ))}
