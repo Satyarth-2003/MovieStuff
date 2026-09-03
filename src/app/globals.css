@@ -27,3 +27,33 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #2D3748;
 }
+
+/* Print Ticket in True Dark Mode */
+@media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body {
+    background: #07080A !important;
+    background-color: #07080A !important;
+    color: #FFFFFF !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .ticket-card {
+    background: #0E1015 !important;
+    background-color: #0E1015 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    border-radius: 24px !important;
+    box-shadow: none !important;
+    margin: 20px auto !important;
+    page-break-inside: avoid;
+  }
+}

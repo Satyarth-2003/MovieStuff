@@ -15,6 +15,7 @@ export default function EmployeeSeatFlow() {
   const [reservedSeats, setReservedSeats] = useState<Set<string>>(new Set());
   const [seatOwners, setSeatOwners] = useState<Record<string, string>>({});
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [releasing, setReleasing] = useState(false);
@@ -99,7 +100,7 @@ export default function EmployeeSeatFlow() {
     }
   }
 
-  async function handleConfirm() {
+  async function handleConfirmBooking() {
     if (!selectedSeat) return;
     setConfirming(true);
     setError(null);
@@ -117,10 +118,12 @@ export default function EmployeeSeatFlow() {
       if (!res.ok) {
         setError(data.error || "Could not confirm your seat.");
         setSelectedSeat(null);
+        setShowConfirmModal(false);
         await refreshSeats();
         return;
       }
       setEmployee((prev) => (prev ? { ...prev, seat: data.seat!, status: "reserved" } : prev));
+      setShowConfirmModal(false);
       await refreshSeats();
     } finally {
       setConfirming(false);
@@ -170,7 +173,6 @@ export default function EmployeeSeatFlow() {
         setAdminMsg("Seat released successfully.");
         setAdminSeatModal(null);
         await refreshSeats();
-        // If it was the admin's own seat, update employee state too
         if (seatIdOrEmail.email === employee?.email || (employee?.seat && seatIdOrEmail.seatId === employee.seat)) {
           setEmployee((prev) => (prev ? { ...prev, seat: null, status: "not_booked" } : prev));
         }
@@ -211,12 +213,10 @@ export default function EmployeeSeatFlow() {
     if (isAdmin) {
       const owner = seatOwners[seatId];
       if (owner && owner !== employee?.email) {
-        // Seat is booked by someone else: open admin seat control dialog
         setAdminSeatModal(seatId);
         return;
       }
     }
-    // Normal user or unbooked seat click
     setSelectedSeat((prev) => (prev === seatId ? null : seatId));
   }
 
@@ -255,7 +255,7 @@ export default function EmployeeSeatFlow() {
     <main className="min-h-screen bg-[#07080A] pb-28 text-white">
       
       {/* MINIMAL NAV HEADER */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07080A]/90 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07080A]/90 backdrop-blur-xl no-print">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <AddaLogo height={24} variant="white" />
@@ -295,7 +295,7 @@ export default function EmployeeSeatFlow() {
       <div className="mx-auto max-w-5xl px-6 pt-8">
         
         {/* EVENT & VENUE HERO */}
-        <div className="mb-8 flex flex-col justify-between gap-6 border-b border-white/[0.06] pb-8 md:flex-row md:items-end">
+        <div className="mb-8 flex flex-col justify-between gap-6 border-b border-white/[0.06] pb-8 md:flex-row md:items-end no-print">
           <div>
             <span className="text-[11px] font-semibold tracking-widest text-red-500 uppercase">
               Teacher&apos;s Day Private Screening
@@ -321,16 +321,16 @@ export default function EmployeeSeatFlow() {
 
         {/* ADMIN MSG TOAST */}
         {adminMsg && (
-          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-medium text-emerald-400">
+          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-medium text-emerald-400 no-print">
             {adminMsg}
           </div>
         )}
 
         {/* BODY: CONFIRMED PASS OR SEAT SELECTION */}
         {isConfirmed ? (
-          /* DISTRICT / CRED MINIMAL VIP TICKET PASS */
+          /* DISTRICT / CRED MINIMAL VIP TICKET PASS (PRINT-READY IN DARK MODE) */
           <div className="mx-auto max-w-md">
-            <div className="rounded-3xl border border-white/[0.08] bg-[#0E1015] p-8 shadow-2xl">
+            <div className="ticket-card rounded-3xl border border-white/[0.08] bg-[#0E1015] p-8 shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/[0.06] pb-6">
                 <div>
                   <span className="text-[10px] font-semibold tracking-widest text-emerald-400 uppercase">
@@ -343,7 +343,7 @@ export default function EmployeeSeatFlow() {
               </div>
 
               {/* SEAT HIGHLIGHT */}
-              <div className="my-6 flex items-center justify-between rounded-2xl bg-zinc-900/60 p-5">
+              <div className="my-6 flex items-center justify-between rounded-2xl bg-zinc-900/80 border border-white/[0.04] p-5">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-zinc-500">Your Seat</span>
                   <p className="text-3xl font-extrabold text-white">{employee.seat}</p>
@@ -369,8 +369,8 @@ export default function EmployeeSeatFlow() {
                 </div>
               </div>
 
-              {/* ACTIONS */}
-              <div className="mt-6 flex flex-col gap-3">
+              {/* ACTIONS (HIDDEN IN PRINT) */}
+              <div className="mt-6 flex flex-col gap-3 no-print">
                 <a
                   href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Adda247+Teacher%27s+Day+Movie+Screening+-+Mirzapur&dates=20260905T091500Z/20260905T121500Z&details=Adda247+Teacher%27s+Day+Special+Movie+Screening+at+Mukta+A2+Star+Mall+Gurugram&location=Star+Mall+Gurgaon"
                   target="_blank"
@@ -416,8 +416,8 @@ export default function EmployeeSeatFlow() {
               onSeatClick={handleSeatClick}
             />
 
-            {/* CRED / DISTRICT STYLE FLOATING CHECKOUT BAR */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0C10]/95 p-4 backdrop-blur-2xl">
+            {/* CRED / DISTRICT STYLE FLOATING BAR */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0C10]/95 p-4 backdrop-blur-2xl no-print">
               <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
                 <div>
                   {selectedSeat ? (
@@ -442,11 +442,11 @@ export default function EmployeeSeatFlow() {
 
                 <button
                   type="button"
-                  disabled={!selectedSeat || confirming}
-                  onClick={handleConfirm}
+                  disabled={!selectedSeat}
+                  onClick={() => setShowConfirmModal(true)}
                   className="flex items-center gap-2 rounded-2xl bg-[#ED1C24] px-6 py-3 text-xs font-semibold text-white shadow-lg transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
                 >
-                  {confirming ? "Confirming…" : selectedSeat ? `Confirm Seat ${selectedSeat}` : "Select a seat"}
+                  {selectedSeat ? `Review & Confirm ${selectedSeat}` : "Select a seat"}
                 </button>
               </div>
             </div>
@@ -454,6 +454,78 @@ export default function EmployeeSeatFlow() {
         )}
 
       </div>
+
+      {/* CONFIRMATION MODAL / PAGE BEFORE FINAL LOCK */}
+      {showConfirmModal && selectedSeat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0E1015] p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-red-500">
+                  Step 2 · Confirm Booking
+                </span>
+                <h3 className="text-xl font-bold text-white">Review Your Seat</h3>
+              </div>
+              <AddaLogo height={20} variant="white" />
+            </div>
+
+            <div className="my-6 rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase tracking-wider text-zinc-500">Selected Seat</span>
+                  <p className="text-3xl font-extrabold text-white">{selectedSeat}</p>
+                </div>
+                <div className="text-right">
+                  <span className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                    {seatTier}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-4 text-xs text-zinc-400">
+                <div className="flex justify-between">
+                  <span>Movie</span>
+                  <span className="font-medium text-white">Mirzapur: The Movie</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Showtime</span>
+                  <span className="font-medium text-white">Sat, 05 Sep · 02:45 PM</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Venue</span>
+                  <span className="font-medium text-white">Mukta A2, Star Mall, Gurugram</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Guest</span>
+                  <span className="font-medium text-white">{employee.name || employee.email}</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-zinc-400 mb-6 text-center">
+              Please ensure you can attend at this showtime before confirming.
+            </p>
+
+            <div className="flex flex-col gap-2.5">
+              <button
+                disabled={confirming}
+                onClick={handleConfirmBooking}
+                className="w-full rounded-2xl bg-[#ED1C24] py-3.5 text-xs font-semibold text-white shadow-lg transition hover:bg-red-600 active:scale-95 disabled:opacity-40"
+              >
+                {confirming ? "Confirming Seat…" : "Yes, Confirm & Lock Seat"}
+              </button>
+
+              <button
+                disabled={confirming}
+                onClick={() => setShowConfirmModal(false)}
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-3 text-xs font-medium text-zinc-400 transition hover:text-white"
+              >
+                Change Seat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADMIN SEAT INSPECT & ACTION MODAL */}
       {adminSeatModal && isAdmin && (
