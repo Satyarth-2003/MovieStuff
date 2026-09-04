@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/authOptions";
 import { isWhitelisted } from "@/lib/booking";
 
 function adminEmails(): string[] {
-  const env = process.env.ADMIN_EMAILS || "satyarth.prakash@adda247.com,ayush.chauhan@adda247.com";
+  const env = process.env.ADMIN_EMAILS || "satyarth.prakash@adda247.com";
   return env
     .split(",")
     .map((e) => e.trim().toLowerCase())

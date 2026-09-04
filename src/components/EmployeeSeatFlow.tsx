@@ -128,8 +128,12 @@ export default function EmployeeSeatFlow() {
         await refreshSeats();
         return;
       }
+
+      // Update confirmed state and take user directly to the Confirmed Ticket Pass page
       setEmployee((prev) => (prev ? { ...prev, seat: data.seat!, status: "reserved" } : prev));
       setShowConfirmModal(false);
+      setAdminTab("ticket");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       await refreshSeats();
     } finally {
       setConfirming(false);
@@ -159,6 +163,8 @@ export default function EmployeeSeatFlow() {
       if (res.ok) {
         setEmployee((prev) => (prev ? { ...prev, seat: null, status: "not_booked" } : prev));
         setSelectedSeat(null);
+        setAdminTab("map");
+        window.scrollTo({ top: 0, behavior: "smooth" });
         await refreshSeats();
       }
     } finally {
@@ -217,7 +223,6 @@ export default function EmployeeSeatFlow() {
 
   function handleSeatClick(seatId: string) {
     if (isAdmin) {
-      // If seat is reserved by anyone OR is admin's own seat, open admin management modal
       const owner = seatOwners[seatId];
       if (owner || seatId === employee?.seat || reservedSeats.has(seatId)) {
         setAdminSeatModal(seatId);
@@ -229,7 +234,7 @@ export default function EmployeeSeatFlow() {
 
   if (loadState === "loading") {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#07080A]">
+      <main className="flex min-h-screen items-center justify-center bg-[#07080A] px-4">
         <div className="flex items-center gap-3">
           <div className="h-4 w-4 rounded-full border-2 border-red-500 border-t-transparent animate-spin" />
           <span className="text-xs font-medium text-zinc-400">Loading auditorium…</span>
@@ -241,11 +246,11 @@ export default function EmployeeSeatFlow() {
   if (loadState === "error" || !employee) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#07080A] px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#0E1015] p-6 text-center">
+        <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015] p-6 text-center shadow-2xl">
           <p className="text-xs text-red-400">{error}</p>
           <button
             onClick={() => loadAll()}
-            className="mt-4 rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black transition hover:bg-zinc-200"
+            className="mt-4 rounded-xl bg-white px-5 py-2.5 text-xs font-semibold text-black transition hover:bg-zinc-200"
           >
             Retry
           </button>
@@ -258,47 +263,47 @@ export default function EmployeeSeatFlow() {
   const isRecliner = selectedSeat?.startsWith("A") || selectedSeat?.startsWith("B");
   const seatTier = isRecliner ? "Premium Recliner" : "Gold Tier";
 
-  // For Admins who have confirmed a seat, let them view either the Auditorium Map or their Ticket Pass
+  // Dedicated Ticket Pass Page view condition
   const showTicketView = !isAdmin && isConfirmed ? true : isAdmin && isConfirmed && adminTab === "ticket";
 
   return (
     <main className="min-h-screen bg-[#07080A] pb-28 text-white">
       
-      {/* MINIMAL NAV HEADER */}
+      {/* MINIMAL RESPONSIVE HEADER */}
       <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07080A]/90 backdrop-blur-xl no-print">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <AddaLogo height={24} variant="white" />
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <AddaLogo height={22} variant="white" />
             {isAdmin ? (
-              <span className="rounded bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-400">
+              <span className="rounded-md bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-400">
                 Admin
               </span>
             ) : isVIP ? (
-              <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+              <span className="rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
                 VIP Guest
               </span>
             ) : null}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
             {/* Admin Tabs Toggle */}
             {isAdmin && isConfirmed && (
-              <div className="flex items-center rounded-xl border border-zinc-800 bg-zinc-900 p-0.5 text-xs">
+              <div className="flex items-center rounded-xl border border-zinc-800 bg-zinc-900 p-0.5 text-[11px] sm:text-xs">
                 <button
                   onClick={() => setAdminTab("map")}
-                  className={`rounded-lg px-3 py-1 font-medium transition ${
+                  className={`rounded-lg px-2.5 py-1 font-medium transition ${
                     adminTab === "map" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
                   }`}
                 >
-                  Auditorium Seats
+                  Seats Map
                 </button>
                 <button
                   onClick={() => setAdminTab("ticket")}
-                  className={`rounded-lg px-3 py-1 font-medium transition ${
+                  className={`rounded-lg px-2.5 py-1 font-medium transition ${
                     adminTab === "ticket" ? "bg-zinc-800 text-white" : "text-zinc-400 hover:text-white"
                   }`}
                 >
-                  My Pass ({employee.seat})
+                  Pass ({employee.seat})
                 </button>
               </div>
             )}
@@ -309,18 +314,15 @@ export default function EmployeeSeatFlow() {
                   setShowAdminDrawer(true);
                   loadAdminData();
                 }}
-                className="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white"
+                className="rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-zinc-300 transition hover:border-zinc-700 hover:text-white"
               >
-                Guestlist & VIP Control
+                Guestlist
               </button>
             )}
 
-            <span className="hidden text-xs text-zinc-400 sm:inline">
-              {employee.name || employee.email}
-            </span>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="text-xs text-zinc-500 transition hover:text-zinc-300"
+              className="text-[11px] sm:text-xs text-zinc-500 transition hover:text-zinc-300 whitespace-nowrap"
             >
               Sign out
             </button>
@@ -328,27 +330,27 @@ export default function EmployeeSeatFlow() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-6 pt-8">
+      <div className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 sm:pt-8">
         
         {/* EVENT & VENUE HERO */}
-        <div className="mb-8 flex flex-col justify-between gap-6 border-b border-white/[0.06] pb-8 md:flex-row md:items-end no-print">
+        <div className="mb-6 sm:mb-8 flex flex-col justify-between gap-4 border-b border-white/[0.06] pb-6 sm:pb-8 md:flex-row md:items-end no-print">
           <div>
-            <span className="text-[11px] font-semibold tracking-widest text-red-500 uppercase">
+            <span className="text-[10px] sm:text-[11px] font-semibold tracking-widest text-red-500 uppercase">
               Teacher&apos;s Day Private Screening
             </span>
-            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
               Mirzapur: The Movie
             </h1>
-            <p className="mt-2 text-xs sm:text-sm text-zinc-400">
+            <p className="mt-1.5 text-xs sm:text-sm text-zinc-400">
               5 Sep · 02:45 PM · 1 Cinema Powered by Mukta A2, Star Mall, Gurugram
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-zinc-900/80 px-4 py-2.5">
+            <div className="flex items-center gap-2.5 rounded-2xl border border-white/[0.08] bg-zinc-900/80 px-3.5 py-2 sm:px-4 sm:py-2.5">
               <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
               <div>
-                <span className="block text-[10px] uppercase font-bold text-zinc-400">Auditorium 1</span>
+                <span className="block text-[9px] sm:text-[10px] uppercase font-bold text-zinc-400">Auditorium 1</span>
                 <span className="text-xs font-bold text-white">Sat, 05 Sep · 02:45 PM</span>
               </div>
             </div>
@@ -357,40 +359,40 @@ export default function EmployeeSeatFlow() {
 
         {/* ADMIN MSG TOAST */}
         {adminMsg && (
-          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-medium text-emerald-400 no-print">
+          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs font-medium text-emerald-400 no-print">
             {adminMsg}
           </div>
         )}
 
-        {/* BODY: CONFIRMED PASS OR SEAT SELECTION */}
+        {/* BODY: CONFIRMED TICKET PASS PAGE OR SEAT MAP SELECTION */}
         {showTicketView ? (
-          /* DISTRICT / CRED MINIMAL VIP TICKET PASS (PRINT-READY IN DARK MODE) */
-          <div className="mx-auto max-w-md">
-            <div className="ticket-card rounded-3xl border border-white/[0.08] bg-[#0E1015] p-8 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-white/[0.06] pb-6">
+          /* NEXT PAGE: CONFIRMED VIP TICKET PASS */
+          <div className="mx-auto max-w-md animate-in fade-in duration-300">
+            <div className="ticket-card rounded-3xl border border-white/[0.08] bg-[#0E1015] p-6 sm:p-8 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-5">
                 <div>
                   <span className="text-[10px] font-semibold tracking-widest text-emerald-400 uppercase">
                     ✓ Seat Confirmed
                   </span>
-                  <h2 className="mt-1 text-xl font-bold text-white">Mirzapur: The Movie</h2>
-                  <p className="text-xs text-zinc-400">Teacher&apos;s Day Premiere</p>
+                  <h2 className="mt-1 text-lg sm:text-xl font-bold text-white">Mirzapur: The Movie</h2>
+                  <p className="text-[11px] sm:text-xs text-zinc-400">Teacher&apos;s Day Premiere</p>
                 </div>
                 <AddaLogo height={20} variant="white" />
               </div>
 
               {/* SEAT HIGHLIGHT */}
-              <div className="my-6 flex items-center justify-between rounded-2xl bg-zinc-900/80 border border-white/[0.04] p-5">
+              <div className="my-5 sm:my-6 flex items-center justify-between rounded-2xl bg-zinc-900/80 border border-white/[0.04] p-4 sm:p-5">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-zinc-500">Your Seat</span>
                   <p className="text-3xl font-extrabold text-white">{employee.seat}</p>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] uppercase tracking-wider text-zinc-500">Auditorium</span>
-                  <p className="text-sm font-semibold text-white">Audi 1 · Mukta A2</p>
+                  <p className="text-xs sm:text-sm font-semibold text-white">Audi 1 · Mukta A2</p>
                 </div>
               </div>
 
-              <div className="space-y-3 text-xs text-zinc-400 border-b border-white/[0.06] pb-6">
+              <div className="space-y-2.5 text-xs text-zinc-400 border-b border-white/[0.06] pb-5">
                 <div className="flex justify-between">
                   <span>Guest</span>
                   <span className="text-white font-medium">{employee.name || employee.email}</span>
@@ -405,8 +407,8 @@ export default function EmployeeSeatFlow() {
                 </div>
               </div>
 
-              {/* ACTIONS (HIDDEN IN PRINT) */}
-              <div className="mt-6 flex flex-col gap-3 no-print">
+              {/* ACTIONS */}
+              <div className="mt-5 sm:mt-6 flex flex-col gap-2.5 no-print">
                 <a
                   href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Adda247+Teacher%27s+Day+Movie+Screening+-+Mirzapur&dates=20260905T091500Z/20260905T121500Z&details=Adda247+Teacher%27s+Day+Special+Movie+Screening+at+Mukta+A2+Star+Mall+Gurugram&location=Star+Mall+Gurgaon"
                   target="_blank"
@@ -432,6 +434,15 @@ export default function EmployeeSeatFlow() {
                     {releasing ? "Freeing Seat…" : "Change / Free Seat"}
                   </button>
                 </div>
+
+                {isAdmin && (
+                  <button
+                    onClick={() => setAdminTab("map")}
+                    className="mt-2 text-center text-[11px] text-zinc-500 hover:text-zinc-300"
+                  >
+                    ← Switch back to Live Auditorium Map
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -439,15 +450,15 @@ export default function EmployeeSeatFlow() {
           /* SEAT MAP VIEW */
           <>
             {error && (
-              <div className="mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center text-xs text-red-400">
+              <div className="mb-4 sm:mb-6 rounded-2xl border border-red-500/20 bg-red-500/10 p-3.5 text-center text-xs text-red-400">
                 {error}
               </div>
             )}
 
             {isAdmin && (
-              <div className="mb-4 flex items-center justify-between rounded-2xl border border-white/[0.06] bg-zinc-900/50 px-4 py-2.5 text-xs text-zinc-400">
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border border-white/[0.06] bg-zinc-900/50 p-3 sm:px-4 sm:py-2.5 text-xs text-zinc-400">
                 <span>
-                  Admin Mode Active: Click any booked seat to view details, release, or reassign it.
+                  Admin Mode Active: Click any booked seat to view details or release it.
                 </span>
                 <span className="font-mono text-amber-400 font-medium">
                   {reservedSeats.size} Seats Reserved
@@ -465,28 +476,30 @@ export default function EmployeeSeatFlow() {
               onSeatClick={handleSeatClick}
             />
 
-            {/* CRED / DISTRICT STYLE FLOATING BAR */}
-            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0C10]/95 p-4 backdrop-blur-2xl no-print">
-              <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
-                <div>
+            {/* FLOATING CHECKOUT BAR (MOBILE OPTIMIZED) */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0C10]/95 p-3 sm:p-4 backdrop-blur-2xl no-print">
+              <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+                <div className="min-w-0">
                   {selectedSeat ? (
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-base font-bold text-white">Seat {selectedSeat}</span>
-                        <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
+                        <span className="text-sm sm:text-base font-bold text-white whitespace-nowrap">
+                          Seat {selectedSeat}
+                        </span>
+                        <span className="rounded-md bg-zinc-800 px-2 py-0.5 text-[9px] sm:text-[10px] font-medium text-zinc-300 truncate">
                           {seatTier}
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-500">Complimentary Employee Pass</p>
+                      <p className="text-[10px] sm:text-[11px] text-zinc-500 truncate">Complimentary Pass</p>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-xs font-medium text-zinc-400">
+                      <p className="text-xs font-medium text-zinc-300 truncate">
                         {isAdmin || isVIP
-                          ? "Select any seat (including VIP Recliner Row A)"
-                          : "Select a seat on the map (Rows D to H)"}
+                          ? "Select a seat (Rows A to H)"
+                          : "Select a seat (Rows D to H)"}
                       </p>
-                      <p className="text-[11px] text-zinc-600">Click any available seat above</p>
+                      <p className="text-[10px] sm:text-[11px] text-zinc-500">Tap any available seat above</p>
                     </div>
                   )}
                 </div>
@@ -495,9 +508,9 @@ export default function EmployeeSeatFlow() {
                   type="button"
                   disabled={!selectedSeat}
                   onClick={() => setShowConfirmModal(true)}
-                  className="flex items-center gap-2 rounded-2xl bg-[#ED1C24] px-6 py-3 text-xs font-semibold text-white shadow-lg transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="flex items-center justify-center rounded-2xl bg-[#ED1C24] px-4 py-2.5 sm:px-6 sm:py-3 text-xs font-semibold text-white shadow-lg transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-30 whitespace-nowrap"
                 >
-                  {selectedSeat ? `Review & Confirm ${selectedSeat}` : "Select a seat"}
+                  {selectedSeat ? `Confirm ${selectedSeat}` : "Select a seat"}
                 </button>
               </div>
             </div>
@@ -506,7 +519,7 @@ export default function EmployeeSeatFlow() {
 
       </div>
 
-      {/* CONFIRMATION MODAL / PAGE BEFORE FINAL LOCK */}
+      {/* CONFIRMATION MODAL BEFORE LOCKING SEAT */}
       {showConfirmModal && selectedSeat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
           <div className="w-full max-w-md rounded-3xl border border-white/[0.1] bg-[#0E1015] p-6 sm:p-8 shadow-2xl">
@@ -515,19 +528,19 @@ export default function EmployeeSeatFlow() {
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-red-500">
                   Step 2 · Confirm Booking
                 </span>
-                <h3 className="text-xl font-bold text-white">Review Your Seat</h3>
+                <h3 className="text-lg sm:text-xl font-bold text-white">Review Your Seat</h3>
               </div>
               <AddaLogo height={20} variant="white" />
             </div>
 
-            <div className="my-6 rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-5">
+            <div className="my-5 rounded-2xl border border-white/[0.06] bg-zinc-900/60 p-4 sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase tracking-wider text-zinc-500">Selected Seat</span>
-                  <p className="text-3xl font-extrabold text-white">{selectedSeat}</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-white">{selectedSeat}</p>
                 </div>
                 <div className="text-right">
-                  <span className="rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                  <span className="rounded-lg bg-zinc-800 px-2.5 py-1 text-[11px] sm:text-xs font-medium text-zinc-300">
                     {seatTier}
                   </span>
                 </div>
@@ -553,23 +566,23 @@ export default function EmployeeSeatFlow() {
               </div>
             </div>
 
-            <p className="text-[11px] text-zinc-400 mb-6 text-center">
-              Please ensure you can attend at this showtime before confirming.
+            <p className="text-[11px] text-zinc-400 mb-5 text-center">
+              Please ensure you can attend at this showtime before locking your seat.
             </p>
 
             <div className="flex flex-col gap-2.5">
               <button
                 disabled={confirming}
                 onClick={handleConfirmBooking}
-                className="w-full rounded-2xl bg-[#ED1C24] py-3.5 text-xs font-semibold text-white shadow-lg transition hover:bg-red-600 active:scale-95 disabled:opacity-40"
+                className="w-full rounded-2xl bg-[#ED1C24] py-3 sm:py-3.5 text-xs font-semibold text-white shadow-lg transition hover:bg-red-600 active:scale-95 disabled:opacity-40"
               >
-                {confirming ? "Confirming Seat…" : "Yes, Confirm & Lock Seat"}
+                {confirming ? "Locking Seat…" : "Yes, Confirm & Lock Seat"}
               </button>
 
               <button
                 disabled={confirming}
                 onClick={() => setShowConfirmModal(false)}
-                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-3 text-xs font-medium text-zinc-400 transition hover:text-white"
+                className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 py-2.5 sm:py-3 text-xs font-medium text-zinc-400 transition hover:text-white"
               >
                 Change Seat
               </button>
@@ -581,18 +594,18 @@ export default function EmployeeSeatFlow() {
       {/* ADMIN SEAT INSPECT & RELEASE MODAL */}
       {adminSeatModal && isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015] p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-[#0E1015] p-5 sm:p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
               <div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-red-400">Admin Seat Control</span>
-                <h3 className="text-lg font-bold text-white">Seat {adminSeatModal}</h3>
+                <h3 className="text-base sm:text-lg font-bold text-white">Seat {adminSeatModal}</h3>
               </div>
               <button onClick={() => setAdminSeatModal(null)} className="text-zinc-400 hover:text-white">✕</button>
             </div>
 
-            <div className="my-4 rounded-2xl bg-zinc-900/60 p-4 text-xs">
+            <div className="my-4 rounded-2xl bg-zinc-900/60 p-3.5 text-xs">
               <span className="text-zinc-500">Current Status:</span>
-              <p className="font-semibold text-white mt-1">
+              <p className="font-semibold text-white mt-0.5">
                 {seatOwners[adminSeatModal]
                   ? `Booked by ${seatOwners[adminSeatModal]}`
                   : adminSeatModal === employee?.seat
@@ -603,7 +616,7 @@ export default function EmployeeSeatFlow() {
               </p>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {(seatOwners[adminSeatModal] || reservedSeats.has(adminSeatModal) || adminSeatModal === employee?.seat) && (
                 <button
                   disabled={adminBusy}
@@ -654,11 +667,11 @@ export default function EmployeeSeatFlow() {
       {/* ADMIN SLIDE-OVER DRAWER */}
       {showAdminDrawer && isAdmin && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm">
-          <div className="h-full w-full max-w-md bg-[#0E1015] border-l border-white/[0.08] p-6 overflow-y-auto">
+          <div className="h-full w-full max-w-md bg-[#0E1015] border-l border-white/[0.08] p-5 sm:p-6 overflow-y-auto">
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
               <div>
                 <h3 className="text-base font-bold text-white">Guestlist & VIP Control</h3>
-                <p className="text-xs text-zinc-400">Add employees and manage seats</p>
+                <p className="text-xs text-zinc-400">Manage all guests and seat assignments</p>
               </div>
               <button
                 onClick={() => setShowAdminDrawer(false)}
@@ -669,7 +682,7 @@ export default function EmployeeSeatFlow() {
             </div>
 
             {/* ADD GUESTS */}
-            <div className="mt-6">
+            <div className="mt-5">
               <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
                 Upload / Paste Guest Emails
               </label>
@@ -689,8 +702,8 @@ export default function EmployeeSeatFlow() {
               </button>
             </div>
 
-            {/* QUICK GUEST LIST WITH CHANGE/RELEASE ACTIONS */}
-            <div className="mt-8">
+            {/* QUICK GUEST LIST */}
+            <div className="mt-6 sm:mt-8">
               <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-3">
                 All Guests ({allEmployees.length})
               </h4>
@@ -716,7 +729,7 @@ export default function EmployeeSeatFlow() {
                       </div>
                     </div>
 
-                    {/* Admin Action for this user */}
+                    {/* Admin Actions for this user */}
                     <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
                       <input
                         placeholder="Seat (e.g. A10)"

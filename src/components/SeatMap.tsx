@@ -56,7 +56,11 @@ export default function SeatMap({
 
   return (
     <div className="w-full select-none">
-      <div className="w-full overflow-x-auto rounded-3xl border border-white/[0.06] bg-[#0A0C10] p-6 sm:p-8 backdrop-blur-xl">
+      {/* Mobile Swipe Hint */}
+      <div className="flex items-center justify-center gap-1.5 text-[11px] text-zinc-400 mb-3 sm:hidden animate-pulse">
+        <span>← Swipe horizontally to explore all seats →</span>
+      </div>
+      <div className="w-full overflow-x-auto rounded-3xl border border-white/[0.06] bg-[#0A0C10] p-4 sm:p-8 backdrop-blur-xl shadow-2xl touch-pan-x">
         <div className="min-w-[820px] flex flex-col items-center">
           
           {/* SECTION: PREMIUM RECLINER */}
