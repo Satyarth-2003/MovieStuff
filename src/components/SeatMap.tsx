@@ -351,13 +351,12 @@ function Seat({
       styles = "bg-emerald-600 text-white font-bold border-emerald-500 cursor-pointer";
       break;
     case "reserved":
+      displayText = "✕";
       if (adminMode) {
         styles =
-          "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:border-red-500 hover:bg-red-500/20 hover:text-white cursor-pointer hover:scale-105";
-        displayText = n;
+          "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 cursor-pointer hover:scale-105 font-bold";
       } else {
         styles = "border-zinc-800/80 bg-zinc-900/30 text-zinc-700 cursor-not-allowed";
-        displayText = "✕";
       }
       break;
     case "admin-reserved":
