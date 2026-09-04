@@ -474,6 +474,27 @@ export default function EmployeeSeatFlow() {
 
               {/* ACTIONS */}
               <div className="mt-5 sm:mt-6 flex flex-col gap-2.5 no-print">
+                {/* WHATSAPP SHARE */}
+                <a
+                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    `🎟️ *Adda247 Private Movie Screening Pass*\n\n` +
+                      `🎬 *Movie:* Mirzapur: The Movie\n` +
+                      `💺 *Seat:* ${employee.seat}\n` +
+                      `📅 *Date & Time:* Sat, 05 Sep · 02:45 PM\n` +
+                      `📍 *Venue:* Mukta A2, Star Mall, Sector 31, Gurugram (Audi 1)\n` +
+                      `👤 *Attendee:* ${employee.name || employee.email}\n\n` +
+                      `See you at the show! 🍿`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] py-3 text-xs font-bold text-black transition hover:bg-[#20bd5a] active:scale-[0.99] shadow-lg shadow-[#25D366]/20"
+                >
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.584 1.777.818 2.796.818 3.179 0 5.766-2.587 5.766-5.767.001-3.18-2.585-5.766-5.766-5.766zm9.969 5.766c0 5.514-4.486 10-10 10-1.823 0-3.529-.489-5.006-1.341l-5.994 1.575 1.603-5.859c-.933-1.528-1.467-3.323-1.467-5.242 0-5.514 4.486-10 10-10s10 4.486 10 10z" />
+                  </svg>
+                  Share on WhatsApp
+                </a>
+
                 <a
                   href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Adda247+Teacher%27s+Day+Movie+Screening+-+Mirzapur&dates=20260905T091500Z/20260905T121500Z&details=Adda247+Teacher%27s+Day+Special+Movie+Screening+at+Mukta+A2+Star+Mall+Gurugram&location=Star+Mall+Gurgaon"
                   target="_blank"
@@ -496,7 +517,7 @@ export default function EmployeeSeatFlow() {
                     onClick={handleReleaseMySeat}
                     className="flex-1 rounded-2xl border border-red-500/30 bg-red-500/10 py-3 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-40"
                   >
-                    {releasing ? "Freeing Seat…" : "Change / Free Seat"}
+                    {releasing ? "Changing Seat…" : "Change Seat"}
                   </button>
                 </div>
 
