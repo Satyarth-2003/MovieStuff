@@ -21,8 +21,8 @@ export default function EmployeeSeatFlow() {
   const [confirming, setConfirming] = useState(false);
   const [releasing, setReleasing] = useState(false);
 
-  // Admin View Switcher: "map" | "ticket"
-  const [adminTab, setAdminTab] = useState<"map" | "ticket">("map");
+  // Admin View Switcher: "ticket" | "map" (Always prioritize Ticket view if seat is booked)
+  const [adminTab, setAdminTab] = useState<"map" | "ticket">("ticket");
 
   // Admin Selected Seat Action Modal state
   const [adminSeatModal, setAdminSeatModal] = useState<string | null>(null);
@@ -48,6 +48,13 @@ export default function EmployeeSeatFlow() {
       setIsAdmin(userIsAdmin);
       setIsVIP(userIsVIP);
 
+      // If user has a seat booked, ensure they are directed straight to their Ticket Pass
+      if (meData.employee?.seat) {
+        setAdminTab("ticket");
+      } else {
+        setAdminTab("map");
+      }
+
       const seatsRes = await fetch("/api/seats");
       if (seatsRes.ok) {
         const seatsData = await seatsRes.json();
@@ -70,9 +77,83 @@ export default function EmployeeSeatFlow() {
     }
   }
 
+  async function refreshSeats(silent = false) {
+    try {
+      const seatsRes = await fetch(`/api/seats?t=${Date.now()}`, { cache: "no-store" });
+      if (seatsRes.ok) {
+        const seatsData = await seatsRes.json();
+        const newReservedList: string[] = seatsData.reservedSeats || [];
+        const newReservedSet = new Set<string>(newReservedList);
+        setReservedSeats(newReservedSet);
+
+        // If another attendee booked the seat the current user had highlighted/selected
+        setSelectedSeat((prevSelected) => {
+          if (prevSelected && newReservedSet.has(prevSelected) && employee?.seat !== prevSelected) {
+            setShowConfirmModal(false);
+            setError(`Seat ${prevSelected} was just booked by another attendee. Please select another seat.`);
+            return null;
+          }
+          return prevSelected;
+        });
+
+        // Live update employee seat state if changed from server
+        if (seatsData.mySeat !== undefined) {
+          setEmployee((prev) => {
+            if (!prev) return prev;
+            if (prev.seat !== seatsData.mySeat) {
+              return {
+                ...prev,
+                seat: seatsData.mySeat,
+                status: seatsData.mySeat ? "reserved" : "not_booked",
+              };
+            }
+            return prev;
+          });
+        }
+      }
+
+      if (isAdmin) {
+        const seatmapRes = await fetch(`/api/admin/seatmap?t=${Date.now()}`, { cache: "no-store" });
+        if (seatmapRes.ok) {
+          const seatmapData = await seatmapRes.json();
+          setSeatOwners(seatmapData.reserved || {});
+        }
+        await loadAdminData();
+      }
+    } catch {
+      if (!silent) {
+        setError("Failed to sync seats. Retrying...");
+      }
+    }
+  }
+
   useEffect(() => {
     loadAll();
-  }, []);
+
+    // Auto-refresh seat states every 2.5 seconds in background
+    const interval = setInterval(() => {
+      refreshSeats(true);
+    }, 2500);
+
+    // Refresh immediately when window/tab regains focus or visibility
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSeats(true);
+      }
+    };
+    const handleFocus = () => {
+      refreshSeats(true);
+    };
+
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [isAdmin, employee?.seat]);
 
   async function loadAdminData() {
     try {
@@ -137,22 +218,6 @@ export default function EmployeeSeatFlow() {
       await refreshSeats();
     } finally {
       setConfirming(false);
-    }
-  }
-
-  async function refreshSeats() {
-    const seatsRes = await fetch("/api/seats");
-    if (seatsRes.ok) {
-      const seatsData = await seatsRes.json();
-      setReservedSeats(new Set<string>(seatsData.reservedSeats || []));
-    }
-    if (isAdmin) {
-      const seatmapRes = await fetch("/api/admin/seatmap");
-      if (seatmapRes.ok) {
-        const seatmapData = await seatmapRes.json();
-        setSeatOwners(seatmapData.reserved || {});
-      }
-      await loadAdminData();
     }
   }
 

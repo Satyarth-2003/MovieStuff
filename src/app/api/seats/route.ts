@@ -3,6 +3,8 @@ import { getEmployeeIdentity } from "@/lib/employeeAuth";
 import { getReservedSeatMap, ensureEmployee } from "@/lib/booking";
 import { ADMIN_ROWS } from "@/lib/seats";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const identity = await getEmployeeIdentity();
   if (!identity) {
@@ -13,9 +15,18 @@ export async function GET() {
     ensureEmployee(identity.email, identity.name),
   ]);
 
-  return NextResponse.json({
-    adminRows: ADMIN_ROWS,
-    reservedSeats: Object.keys(reserved),
-    mySeat: employee.seat,
-  });
+  return NextResponse.json(
+    {
+      adminRows: ADMIN_ROWS,
+      reservedSeats: Object.keys(reserved),
+      mySeat: employee.seat,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    }
+  );
 }
