@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { authOptions, isAllowedDomain } from "@/lib/authOptions";
 import { isWhitelisted } from "@/lib/booking";
 
 function adminEmails(): string[] {
@@ -11,7 +11,7 @@ function adminEmails(): string[] {
 }
 
 function vipEmails(): string[] {
-  const env = process.env.VIP_EMAILS || "anil.bhadauria@adda247.com";
+  const env = process.env.VIP_EMAILS || "anil.bhadauria@adda247.com,anil.bhadauria@addaeducation.com";
   return env
     .split(",")
     .map((e) => e.trim().toLowerCase())
@@ -27,13 +27,13 @@ export interface EmployeeIdentity {
 
 export async function getEmployeeIdentity(): Promise<EmployeeIdentity | null> {
   const session = await getServerSession(authOptions);
-  const email = session?.user?.email?.toLowerCase();
+  const email = session?.user?.email?.toLowerCase().trim();
   if (!email) return null;
 
   const role = (session?.user as { role?: string })?.role;
   const isAdmin = role === "admin" || adminEmails().includes(email);
   const isVIP = role === "vip" || vipEmails().includes(email);
-  const allowed = isAdmin || isVIP || (await isWhitelisted(email));
+  const allowed = isAdmin || isVIP || isAllowedDomain(email) || (await isWhitelisted(email));
 
   if (!allowed) return null;
   return {

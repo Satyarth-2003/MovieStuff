@@ -51,23 +51,26 @@ export async function getEmployee(email: string): Promise<Employee | null> {
 }
 
 export async function ensureEmployee(email: string, name: string): Promise<Employee> {
-  const existing = await getEmployee(email);
+  const lower = email.toLowerCase().trim();
+  await redis.sadd(WHITELIST_KEY, lower);
+
+  const existing = await getEmployee(lower);
   if (existing) {
     if (name && !existing.name) {
-      await redis.hset(employeeKey(email), { name });
+      await redis.hset(employeeKey(lower), { name });
       existing.name = name;
     }
     return existing;
   }
   const fresh: Employee = {
-    email: email.toLowerCase(),
-    name: name || email.split("@")[0],
+    email: lower,
+    name: name || lower.split("@")[0],
     role: "employee",
     seat: null,
     status: "not_booked",
     bookingTime: null,
   };
-  await redis.hset(employeeKey(email), {
+  await redis.hset(employeeKey(lower), {
     email: fresh.email,
     name: fresh.name,
     role: "employee",

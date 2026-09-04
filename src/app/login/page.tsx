@@ -32,12 +32,12 @@ function LoginCard() {
       <div className="my-8 h-px w-full bg-white/[0.06]" />
 
       <p className="text-xs leading-relaxed text-zinc-400">
-        Sign in with your Adda247 Google account to select your seat.
+        Sign in with your official Adda247 or StudyIQ Google account to select your seat.
       </p>
 
       {denied && (
         <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">
-          This account is not on the guest list. Please use your official @adda247.com ID.
+          This account is not on the guest list. Please use your official @adda247.com or @studyiq.com ID.
         </div>
       )}
 
