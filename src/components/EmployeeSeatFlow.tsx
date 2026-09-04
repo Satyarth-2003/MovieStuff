@@ -12,6 +12,7 @@ export default function EmployeeSeatFlow() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isVIP, setIsVIP] = useState(false);
   const [reservedSeats, setReservedSeats] = useState<Set<string>>(new Set());
   const [seatOwners, setSeatOwners] = useState<Record<string, string>>({});
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
@@ -43,7 +44,9 @@ export default function EmployeeSeatFlow() {
       const meData = await meRes.json();
       setEmployee(meData.employee);
       const userIsAdmin = !!meData.isAdmin;
+      const userIsVIP = !!meData.isVIP;
       setIsAdmin(userIsAdmin);
+      setIsVIP(userIsVIP);
 
       const seatsRes = await fetch("/api/seats");
       if (seatsRes.ok) {
@@ -266,11 +269,15 @@ export default function EmployeeSeatFlow() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <AddaLogo height={24} variant="white" />
-            {isAdmin && (
+            {isAdmin ? (
               <span className="rounded bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-400">
                 Admin
               </span>
-            )}
+            ) : isVIP ? (
+              <span className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                VIP Guest
+              </span>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-4">
@@ -453,6 +460,7 @@ export default function EmployeeSeatFlow() {
               selectedSeat={selectedSeat}
               mySeat={employee.seat}
               adminMode={isAdmin}
+              vipMode={isVIP}
               ownerLabel={(seatId) => seatOwners[seatId]}
               onSeatClick={handleSeatClick}
             />
@@ -474,7 +482,9 @@ export default function EmployeeSeatFlow() {
                   ) : (
                     <div>
                       <p className="text-xs font-medium text-zinc-400">
-                        {isAdmin ? "Select any seat or click booked seats to manage" : "Select a seat on the map (Rows C to M)"}
+                        {isAdmin || isVIP
+                          ? "Select any seat (including VIP Recliner Row A)"
+                          : "Select a seat on the map (Rows D to H)"}
                       </p>
                       <p className="text-[11px] text-zinc-600">Click any available seat above</p>
                     </div>

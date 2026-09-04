@@ -12,14 +12,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const seatId = typeof body?.seatId === "string" ? body.seatId.trim().toUpperCase() : "";
   if (!parseSeat(seatId)) {
-    return NextResponse.json({ error: "Invalid seat." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid seat selection." }, { status: 400 });
   }
 
   await ensureEmployee(identity.email, identity.name);
-  const result = await confirmSeatForEmployee(identity.email, seatId, identity.isAdmin);
+  const canAccessVIP = identity.isAdmin || identity.isVIP;
+  const result = await confirmSeatForEmployee(identity.email, seatId, canAccessVIP);
 
   if (result === "ADMIN_ROW") {
-    return NextResponse.json({ error: "This row is reserved for admin use only." }, { status: 403 });
+    return NextResponse.json({ error: "This row is reserved for VIP/Admin guests only." }, { status: 403 });
   }
   if (result === "SEAT_TAKEN") {
     return NextResponse.json(

@@ -3,17 +3,27 @@ import GoogleProvider from "next-auth/providers/google";
 import { isWhitelisted } from "@/lib/booking";
 
 function adminEmails(): string[] {
-  return (process.env.ADMIN_EMAILS || "")
+  const env = process.env.ADMIN_EMAILS || "satyarth.prakash@adda247.com,ayush.chauhan@adda247.com";
+  return env
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 }
 
-export type AppRole = "admin" | "employee";
+function vipEmails(): string[] {
+  const env = process.env.VIP_EMAILS || "anil.bhadauria@adda247.com";
+  return env
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+export type AppRole = "admin" | "vip" | "employee";
 
 export async function roleForEmail(email: string): Promise<AppRole | null> {
   const lower = email.toLowerCase();
   if (adminEmails().includes(lower)) return "admin";
+  if (vipEmails().includes(lower)) return "vip";
   if (await isWhitelisted(lower)) return "employee";
   return null;
 }

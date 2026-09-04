@@ -11,5 +11,6 @@ export async function GET() {
   return NextResponse.json({
     employee,
     isAdmin: identity.isAdmin,
+    isVIP: identity.isVIP,
   });
 }
