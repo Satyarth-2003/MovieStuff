@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { isAdminRowSeat } from "@/lib/seats";
+import { isAdminRowSeat, isAllocatedSeat } from "@/lib/seats";
 
 export type SeatState = "available" | "selected" | "reserved" | "admin-reserved" | "mine";
 
@@ -23,6 +23,9 @@ function getSeatStatus(
   selectedSeat: string | null | undefined,
   canAccessVIP: boolean
 ): SeatState {
+  if (!isAllocatedSeat(seatId)) {
+    return "reserved"; // Shows booked ✕
+  }
   if (mySeat === seatId) {
     return "mine";
   }
@@ -49,11 +52,12 @@ export default function SeatMap({
   ownerLabel,
 }: SeatMapProps) {
   const canAccessVIP = adminMode || vipMode;
+  const goldRows = ["C", "D", "E", "F", "G", "H", "J", "K", "L", "M"] as const;
 
   return (
     <div className="w-full select-none">
       <div className="w-full overflow-x-auto rounded-3xl border border-white/[0.06] bg-[#0A0C10] p-6 sm:p-8 backdrop-blur-xl">
-        <div className="min-w-[800px] flex flex-col items-center">
+        <div className="min-w-[820px] flex flex-col items-center">
           
           {/* SECTION: PREMIUM RECLINER */}
           <div className="w-full max-w-3xl mb-8">
@@ -65,12 +69,35 @@ export default function SeatMap({
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
 
-            {/* Row A (Seats 1 to 17) */}
+            {/* Row A (1 to 17 - Available to VIP/Admin) */}
             <div className="my-1.5 flex items-center justify-center gap-4">
               <span className="w-5 text-center text-xs font-semibold text-zinc-500">A</span>
               <div className="flex gap-1.5">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((n) => {
                   const seatId = `A${n}`;
+                  const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
+                  return (
+                    <Seat
+                      key={seatId}
+                      seatId={seatId}
+                      n={n}
+                      state={state}
+                      interactive={interactive}
+                      adminMode={adminMode}
+                      onClick={onSeatClick}
+                      owner={ownerLabel?.(seatId)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Row B (1 to 14 - Visible, Shows Booked ✕) */}
+            <div className="my-1.5 flex items-center justify-center gap-4">
+              <span className="w-5 text-center text-xs font-semibold text-zinc-500">B</span>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].map((n) => {
+                  const seatId = `B${n}`;
                   const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
                   return (
                     <Seat
@@ -100,205 +127,71 @@ export default function SeatMap({
             </div>
 
             <div className="flex flex-col items-center gap-1.5">
-              
-              {/* Row D: D1-10 on left, D16-20 on right */}
-              <div className="flex items-center gap-4">
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">D</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                    const seatId = `D${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="w-6" />
-                <div className="flex gap-1.5">
-                  {/* Spacer for seats 11-15 */}
-                  <div className="w-[170px]" />
-                  {[16, 17, 18, 19, 20].map((n) => {
-                    const seatId = `D${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+              {goldRows.map((row) => {
+                const left = Array.from({ length: 10 }, (_, i) => i + 1);
+                const right = Array.from({ length: 10 }, (_, i) => i + 11);
 
-              {/* Row E: E1-20 */}
-              <div className="flex items-center gap-4">
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">E</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                    const seatId = `E${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="w-6" />
-                <div className="flex gap-1.5">
-                  {[11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => {
-                    const seatId = `E${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+                return (
+                  <div key={row} className="flex items-center gap-4">
+                    <span className="w-5 text-center text-xs font-semibold text-zinc-500">{row}</span>
 
-              {/* Row F: F1-20 */}
-              <div className="flex items-center gap-4">
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">F</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                    const seatId = `F${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="w-6" />
-                <div className="flex gap-1.5">
-                  {[11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => {
-                    const seatId = `F${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+                    {/* Left Block (Seats 1 to 10) */}
+                    <div className="flex gap-1.5">
+                      {left.map((n) => {
+                        const seatId = `${row}${n}`;
+                        const state = getSeatStatus(
+                          seatId,
+                          reservedSeats,
+                          mySeat,
+                          selectedSeat,
+                          canAccessVIP
+                        );
+                        return (
+                          <Seat
+                            key={seatId}
+                            seatId={seatId}
+                            n={n}
+                            state={state}
+                            interactive={interactive}
+                            adminMode={adminMode}
+                            onClick={onSeatClick}
+                            owner={ownerLabel?.(seatId)}
+                          />
+                        );
+                      })}
+                    </div>
 
-              {/* Row G: G1-20 */}
-              <div className="flex items-center gap-4">
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">G</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                    const seatId = `G${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="w-6" />
-                <div className="flex gap-1.5">
-                  {[11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => {
-                    const seatId = `G${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
+                    {/* Central Aisle */}
+                    <div className="w-6" />
 
-              {/* Row H: H1-10 */}
-              <div className="flex items-center gap-4">
-                <span className="w-5 text-center text-xs font-semibold text-zinc-500">H</span>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                    const seatId = `H${n}`;
-                    const state = getSeatStatus(seatId, reservedSeats, mySeat, selectedSeat, canAccessVIP);
-                    return (
-                      <Seat
-                        key={seatId}
-                        seatId={seatId}
-                        n={n}
-                        state={state}
-                        interactive={interactive}
-                        adminMode={adminMode}
-                        onClick={onSeatClick}
-                        owner={ownerLabel?.(seatId)}
-                      />
-                    );
-                  })}
-                </div>
-                <div className="w-6" />
-                <div className="flex gap-1.5">
-                  {/* Right side is empty for Row H */}
-                  <div className="w-[340px]" />
-                </div>
-              </div>
-
+                    {/* Right Block (Seats 11 to 20) */}
+                    <div className="flex gap-1.5">
+                      {right.map((n) => {
+                        const seatId = `${row}${n}`;
+                        const state = getSeatStatus(
+                          seatId,
+                          reservedSeats,
+                          mySeat,
+                          selectedSeat,
+                          canAccessVIP
+                        );
+                        return (
+                          <Seat
+                            key={seatId}
+                            seatId={seatId}
+                            n={n}
+                            state={state}
+                            interactive={interactive}
+                            adminMode={adminMode}
+                            onClick={onSeatClick}
+                            owner={ownerLabel?.(seatId)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -333,9 +226,12 @@ function Seat({
   onClick?: (seatId: string) => void;
   owner?: string;
 }) {
+  const isAllocated = isAllocatedSeat(seatId);
+
   const clickable =
     interactive &&
     onClick &&
+    isAllocated &&
     (state === "available" ||
       state === "selected" ||
       (adminMode && (state === "reserved" || state === "mine" || state === "admin-reserved")));
@@ -352,7 +248,7 @@ function Seat({
       break;
     case "reserved":
       displayText = "✕";
-      if (adminMode) {
+      if (adminMode && isAllocated) {
         styles =
           "border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:border-red-500 hover:text-red-400 hover:bg-red-500/10 cursor-pointer hover:scale-105 font-bold";
       } else {
@@ -372,6 +268,8 @@ function Seat({
   const tooltip =
     state === "reserved" && owner
       ? `Seat ${seatId} · Booked by ${owner}${adminMode ? " (Click to Release / Reassign)" : ""}`
+      : state === "reserved"
+      ? `Seat ${seatId} (Booked)`
       : state === "mine"
       ? `Your Seat: ${seatId}${adminMode ? " (Click to Release / Change)" : ""}`
       : `Seat ${seatId}`;
